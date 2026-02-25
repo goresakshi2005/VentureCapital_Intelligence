@@ -3,16 +3,15 @@ from django_filters.rest_framework import DjangoFilterBackend
 from .models import Company
 from .serializers import CompanySerializer
 
-class CompanyList(generics.ListAPIView):
+class CompanyList(generics.ListCreateAPIView):  # Changed to ListCreateAPIView (if you want POST, but we have add-company)
     queryset = Company.objects.all()
     serializer_class = CompanySerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['name', 'description', 'industry']
     ordering_fields = ['name', 'founded', 'total_funding']
     filterset_fields = ['industry', 'location']
-    # pagination can be added if needed
 
-class CompanyDetail(generics.RetrieveAPIView):
+class CompanyDetail(generics.RetrieveUpdateDestroyAPIView):  # Added Destroy
     queryset = Company.objects.all()
     serializer_class = CompanySerializer
 
@@ -32,16 +31,14 @@ class EnrichCompany(APIView):
             return Response({'error': 'URL required'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            # 1. Scrape using Tavily Extract
             tavily = TavilyClient(api_key=os.getenv('TAVILY_API_KEY'))
             response = tavily.extract(urls=[url])
             if not response.get('results'):
                 return Response({'error': 'Failed to scrape URL'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             content = response['results'][0].get('raw_content', '')
 
-            # 2. Structure using Gemini
             genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
-            model = genai.GenerativeModel('gemini-2.5-flash')
+            model = genai.GenerativeModel('gemini-1.5-flash')
             prompt = f"""
             Based on the following website content, extract:
             - summary (1-2 sentences)
@@ -77,16 +74,14 @@ class AddCompany(APIView):
             return Response({'error': 'URL required'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            # 1. Scrape using Tavily Extract
             tavily = TavilyClient(api_key=os.getenv('TAVILY_API_KEY'))
             response = tavily.extract(urls=[url])
             if not response.get('results'):
                 return Response({'error': 'Failed to scrape URL'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             content = response['results'][0].get('raw_content', '')
 
-            # 2. Extract company info using Gemini
             genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
-            model = genai.GenerativeModel('gemini-2.5-flash')
+            model = genai.GenerativeModel('gemini-1.5-flash')
             prompt = f"""
             Based on the following website content, extract company information with these fields:
             - name (company name)
@@ -112,7 +107,6 @@ class AddCompany(APIView):
                 text = text[:-3]
             data = json.loads(text.strip())
 
-            # 3. Create company record
             company = Company.objects.create(
                 name=data.get('name', ''),
                 website=url,

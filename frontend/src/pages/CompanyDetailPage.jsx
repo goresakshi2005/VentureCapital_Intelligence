@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { getCompany, enrichCompany } from '../lib/api';
+import { useParams, useNavigate } from 'react-router-dom';
+import { getCompany, enrichCompany, deleteCompany } from '../lib/api';
 import { getCompanyNote, setCompanyNote, getLists, saveLists } from '../lib/storage';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,12 +12,24 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { ArrowLeft, Trash2 } from 'lucide-react';
 
 export default function CompanyDetailPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [company, setCompany] = useState(null);
   const [note, setNote] = useState('');
   const [enrichment, setEnrichment] = useState(null);
@@ -26,6 +38,7 @@ export default function CompanyDetailPage() {
   const [selectedLists, setSelectedLists] = useState({});
   const [newListName, setNewListName] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   useEffect(() => {
     getCompany(id).then(setCompany);
@@ -80,24 +93,50 @@ export default function CompanyDetailPage() {
     setNewListName('');
   };
 
-  if (!company) return <div>Loading...</div>;
+  const handleDelete = async () => {
+    try {
+      await deleteCompany(parseInt(id));
+      navigate('/companies');
+    } catch (error) {
+      console.error('Delete failed:', error);
+    }
+  };
+
+  if (!company) return <div className="flex justify-center items-center h-64">Loading...</div>;
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold">{company.name}</h1>
+      <div className="flex items-center justify-between">
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
+        >
+          <ArrowLeft size={20} className="mr-1" /> Back
+        </button>
+        <Button
+          variant="ghost"
+          onClick={() => setDeleteDialogOpen(true)}
+          className="text-red-500 hover:text-red-700 hover:bg-red-50"
+        >
+          <Trash2 size={18} className="mr-2" /> Delete Company
+        </Button>
+      </div>
+
+      <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">{company.name}</h1>
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-2 space-y-4">
           <Card>
             <CardHeader>
               <CardTitle>Company Overview</CardTitle>
             </CardHeader>
-            <CardContent>
-              <p><strong>Website:</strong> <a href={company.website} target="_blank" rel="noreferrer">{company.website}</a></p>
-              <p><strong>Industry:</strong> {company.industry}</p>
-              <p><strong>Location:</strong> {company.location}</p>
-              <p><strong>Founded:</strong> {company.founded}</p>
-              <p><strong>Total Funding:</strong> {company.total_funding}</p>
-              <p><strong>Description:</strong> {company.description}</p>
+            <CardContent className="space-y-2">
+              <p><span className="font-medium">Website:</span> <a href={company.website} target="_blank" rel="noreferrer" className="text-primary-600 hover:underline">{company.website}</a></p>
+              <p><span className="font-medium">Industry:</span> {company.industry}</p>
+              <p><span className="font-medium">Location:</span> {company.location}</p>
+              <p><span className="font-medium">Founded:</span> {company.founded || 'N/A'}</p>
+              <p><span className="font-medium">Total Funding:</span> {company.total_funding || 'N/A'}</p>
+              <p><span className="font-medium">Description:</span> {company.description}</p>
             </CardContent>
           </Card>
 
@@ -107,7 +146,6 @@ export default function CompanyDetailPage() {
             </CardHeader>
             <CardContent>
               <p>{company.last_signal || 'No recent signals'}</p>
-              {/* Placeholder for more signals */}
             </CardContent>
           </Card>
 
@@ -131,20 +169,20 @@ export default function CompanyDetailPage() {
                 <CardTitle>Enriched Data</CardTitle>
               </CardHeader>
               <CardContent>
-                <p><strong>Summary:</strong> {enrichment.summary}</p>
+                <p><span className="font-medium">Summary:</span> {enrichment.summary}</p>
                 <div className="mt-2">
-                  <strong>What they do:</strong>
-                  <ul className="list-disc pl-5">
+                  <span className="font-medium">What they do:</span>
+                  <ul className="list-disc pl-5 mt-1">
                     {enrichment.what_they_do.map((item, i) => (
                       <li key={i}>{item}</li>
                     ))}
                   </ul>
                 </div>
                 <div className="mt-2">
-                  <strong>Keywords:</strong> {enrichment.keywords.join(', ')}
+                  <span className="font-medium">Keywords:</span> {enrichment.keywords.join(', ')}
                 </div>
                 <div className="mt-2">
-                  <strong>Derived Signals:</strong> {enrichment.derived_signals.join(', ')}
+                  <span className="font-medium">Derived Signals:</span> {enrichment.derived_signals.join(', ')}
                 </div>
                 <p className="text-sm text-gray-500 mt-2">Source: {enrichment.sources[0]}</p>
               </CardContent>
@@ -153,7 +191,7 @@ export default function CompanyDetailPage() {
         </div>
 
         <div className="space-y-4">
-          <Button onClick={handleEnrich} disabled={enrichLoading} className="w-full">
+          <Button onClick={handleEnrich} disabled={enrichLoading} className="w-full bg-primary-600 hover:bg-primary-700">
             {enrichLoading ? 'Enriching...' : 'Enrich Company'}
           </Button>
 
@@ -184,7 +222,7 @@ export default function CompanyDetailPage() {
                     value={newListName}
                     onChange={(e) => setNewListName(e.target.value)}
                   />
-                  <Button onClick={handleCreateList}>Create</Button>
+                  <Button onClick={handleCreateList} variant="outline">Create</Button>
                 </div>
                 <Button onClick={handleSaveToList} className="w-full">Save</Button>
               </div>
@@ -192,6 +230,24 @@ export default function CompanyDetailPage() {
           </Dialog>
         </div>
       </div>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete {company.name}. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
