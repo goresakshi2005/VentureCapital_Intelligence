@@ -38,7 +38,7 @@ export default function Header({ searchQuery, setSearchQuery, onSearch, mobileOp
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center text-white font-bold">VI</div>
           <div>
-            <div className="text-lg font-semibold text-gray-800 dark:text-text-primary">VC Intel</div>
+            <div className="text-lg font-semibold text-gray-800 dark:text-text-primary">Venture Capital Intelligence</div>
             <div className="text-xs text-gray-500 dark:text-text-muted">Deal intelligence & lists</div>
           </div>
         </div>

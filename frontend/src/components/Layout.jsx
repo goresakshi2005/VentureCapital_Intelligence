@@ -21,7 +21,7 @@ export default function Layout() {
       {/* Sidebar */}
       <div className="hidden md:flex w-64 bg-white dark:bg-surface border-r border-gray-200 dark:border-border flex-col">
         <div className="p-6">
-          <h1 className="text-2xl font-bold text-primary-600 dark:text-primary">VC Intel</h1>
+          <h1 className="text-2xl font-bold text-primary-600 dark:text-primary">VC Intelligence</h1>
         </div>
         <nav className="flex-1 px-4 space-y-1">
           <Link to="/companies" className="flex items-center gap-3 px-3 py-2 text-gray-700 dark:text-text-secondary hover:bg-gray-100 dark:hover:bg-surface-light rounded-lg transition-colors">

@@ -12,10 +12,10 @@ export default {
         surface: '#14132E',
         'surface-light': '#1E1A3A',
         primary: {
-          DEFAULT: '#8B2CFF',
-          light: '#9B5CFF',
-          dark: '#6C1DFF',
-          neon: '#B77CFF',
+          DEFAULT: '#A855F7',   // lighter purple
+          light: '#C084FC',      // even lighter
+          dark: '#7E22CE',       // darker for hover
+          neon: '#D8B4FE',       // very light for accents
         },
         text: {
           primary: '#FFFFFF',
