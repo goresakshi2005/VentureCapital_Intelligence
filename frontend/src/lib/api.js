@@ -6,7 +6,6 @@ const api = axios.create({
 
 export const getCompanies = async (params) => {
   const response = await api.get('/companies/', { params });
-  // API uses pagination; return the `results` array for the UI table
   return response.data.results;
 };
 
@@ -17,5 +16,10 @@ export const getCompany = async (id) => {
 
 export const enrichCompany = async (url) => {
   const response = await api.post('/enrich/', { url });
+  return response.data;
+};
+
+export const addCompany = async (url) => {
+  const response = await api.post('/add-company/', { url });
   return response.data;
 };

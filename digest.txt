@@ -1,0 +1,1643 @@
+Directory structure:
+└── VC Intelligence/
+    ├── backend/
+    │   ├── db.sqlite3
+    │   ├── manage.py
+    │   ├── requirements.txt
+    │   ├── api/
+    │   │   ├── __init__.py
+    │   │   ├── admin.py
+    │   │   ├── apps.py
+    │   │   ├── models.py
+    │   │   ├── serializers.py
+    │   │   ├── tests.py
+    │   │   ├── urls.py
+    │   │   ├── views.py
+    │   │   ├── fixtures/
+    │   │   │   └── companies.json
+    │   │   └── migrations/
+    │   │       ├── 0001_initial.py
+    │   │       └── __init__.py
+    │   └── backend/
+    │       ├── __init__.py
+    │       ├── asgi.py
+    │       ├── settings.py
+    │       ├── urls.py
+    │       └── wsgi.py
+    └── frontend/
+        ├── README.md
+        ├── eslint.config.js
+        ├── index.html
+        ├── package.json
+        ├── postcss.config.js
+        ├── tailwind.config.js
+        ├── vite.config.js
+        └── src/
+            ├── App.css
+            ├── App.jsx
+            ├── index.css
+            ├── main.jsx
+            ├── components/
+            │   ├── Layout.jsx
+            │   └── ui/
+            │       ├── button.jsx
+            │       ├── card.jsx
+            │       ├── checkbox.jsx
+            │       ├── dialog.jsx
+            │       ├── input.jsx
+            │       ├── label.jsx
+            │       ├── table.jsx
+            │       └── textarea.jsx
+            ├── lib/
+            │   ├── api.js
+            │   └── storage.js
+            └── pages/
+                ├── CompaniesPage.jsx
+                ├── CompanyDetailPage.jsx
+                ├── ListsPage.jsx
+                └── SavedSearchesPage.jsx
+
+================================================
+FILE: backend/db.sqlite3
+================================================
+[Non-text file]
+
+
+================================================
+FILE: backend/manage.py
+================================================
+#!/usr/bin/env python
+"""Django's command-line utility for administrative tasks."""
+import os
+import sys
+
+
+def main():
+    """Run administrative tasks."""
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings')
+    try:
+        from django.core.management import execute_from_command_line
+    except ImportError as exc:
+        raise ImportError(
+            "Couldn't import Django. Are you sure it's installed and "
+            "available on your PYTHONPATH environment variable? Did you "
+            "forget to activate a virtual environment?"
+        ) from exc
+    execute_from_command_line(sys.argv)
+
+
+if __name__ == '__main__':
+    main()
+
+
+
+================================================
+FILE: backend/requirements.txt
+================================================
+Django==4.2
+django-cors-headers==4.2
+python-dotenv==1.0
+google-generativeai==0.3.0
+tavily-python==0.1.0
+
+
+================================================
+FILE: backend/api/__init__.py
+================================================
+
+
+
+================================================
+FILE: backend/api/admin.py
+================================================
+from django.contrib import admin
+
+# Register your models here.
+
+
+
+================================================
+FILE: backend/api/apps.py
+================================================
+from django.apps import AppConfig
+
+
+class ApiConfig(AppConfig):
+    default_auto_field = 'django.db.models.BigAutoField'
+    name = 'api'
+
+
+
+================================================
+FILE: backend/api/models.py
+================================================
+from django.db import models
+
+class Company(models.Model):
+    id = models.AutoField(primary_key=True)
+    name = models.CharField(max_length=200)
+    website = models.URLField()
+    description = models.TextField(blank=True)
+    logo = models.URLField(blank=True)          # placeholder image URL
+    industry = models.CharField(max_length=100, blank=True)
+    location = models.CharField(max_length=200, blank=True)
+    founded = models.IntegerField(null=True, blank=True)
+    total_funding = models.CharField(max_length=50, blank=True)   # e.g. "$10M"
+    last_signal = models.CharField(max_length=200, blank=True)    # e.g. "Hiring 3 roles"
+
+    def __str__(self):
+        return self.name
+
+
+================================================
+FILE: backend/api/serializers.py
+================================================
+from rest_framework import serializers
+from .models import Company
+
+class CompanySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Company
+        fields = '__all__'
+
+
+================================================
+FILE: backend/api/tests.py
+================================================
+from django.test import TestCase
+
+# Create your tests here.
+
+
+
+================================================
+FILE: backend/api/urls.py
+================================================
+from django.urls import path
+from .views import CompanyList, CompanyDetail, EnrichCompany
+
+urlpatterns = [
+    path('companies/', CompanyList.as_view(), name='company-list'),
+    path('companies/<int:pk>/', CompanyDetail.as_view(), name='company-detail'),
+    path('enrich/', EnrichCompany.as_view(), name='enrich'),
+]
+
+
+================================================
+FILE: backend/api/views.py
+================================================
+from rest_framework import generics, filters
+from django_filters.rest_framework import DjangoFilterBackend
+from .models import Company
+from .serializers import CompanySerializer
+
+class CompanyList(generics.ListAPIView):
+    queryset = Company.objects.all()
+    serializer_class = CompanySerializer
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
+    search_fields = ['name', 'description', 'industry']
+    ordering_fields = ['name', 'founded', 'total_funding']
+    filterset_fields = ['industry', 'location']
+    # pagination can be added if needed
+
+class CompanyDetail(generics.RetrieveAPIView):
+    queryset = Company.objects.all()
+    serializer_class = CompanySerializer
+
+
+import os
+import json
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from tavily import TavilyClient
+import google.generativeai as genai
+
+class EnrichCompany(APIView):
+    def post(self, request):
+        url = request.data.get('url')
+        if not url:
+            return Response({'error': 'URL required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            # 1. Scrape using Tavily Extract
+            tavily = TavilyClient(api_key=os.getenv('TAVILY_API_KEY'))
+            # Tavily extract expects a list of URLs
+            response = tavily.extract(urls=[url])
+            if not response.get('results'):
+                return Response({'error': 'Failed to scrape URL'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            content = response['results'][0].get('raw_content', '')
+
+            # 2. Structure using Gemini
+            genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
+            model = genai.GenerativeModel('gemini-2.5-flash')
+            prompt = f"""
+            Based on the following website content, extract:
+            - summary (1-2 sentences)
+            - what_they_do (3-6 bullet points)
+            - keywords (5-10)
+            - derived_signals (2-4 insights like "Careers page exists", "Blog updated recently", "Changelog present")
+
+            Return valid JSON only with keys: summary, what_they_do, keywords, derived_signals.
+
+            Content:
+            {content[:10000]}  # limit to 10k chars
+            """
+            gemini_response = model.generate_content(prompt)
+            # Gemini returns text; we need to parse JSON
+            text = gemini_response.text
+            # Remove markdown code fences if present
+            if text.startswith('```json'):
+                text = text[7:]
+            if text.endswith('```'):
+                text = text[:-3]
+            data = json.loads(text.strip())
+
+            # Add metadata
+            data['sources'] = [url]
+            data['timestamp'] = response['results'][0].get('url')  # or current time
+            return Response(data)
+
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+================================================
+FILE: backend/api/fixtures/companies.json
+================================================
+[
+  {
+    "model": "api.company",
+    "pk": 1,
+    "fields": {
+      "name": "AI Startup",
+      "website": "https://example.com",
+      "description": "Building LLM tools",
+      "logo": "https://via.placeholder.com/150",
+      "industry": "AI",
+      "location": "San Francisco, CA",
+      "founded": 2021,
+      "total_funding": "$5M",
+      "last_signal": "Hiring 2 engineers"
+    }
+  }
+]
+
+
+================================================
+FILE: backend/api/migrations/0001_initial.py
+================================================
+# Generated by Django 6.0.2 on 2026-02-25 08:58
+
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    initial = True
+
+    dependencies = [
+    ]
+
+    operations = [
+        migrations.CreateModel(
+            name='Company',
+            fields=[
+                ('id', models.AutoField(primary_key=True, serialize=False)),
+                ('name', models.CharField(max_length=200)),
+                ('website', models.URLField()),
+                ('description', models.TextField(blank=True)),
+                ('logo', models.URLField(blank=True)),
+                ('industry', models.CharField(blank=True, max_length=100)),
+                ('location', models.CharField(blank=True, max_length=200)),
+                ('founded', models.IntegerField(blank=True, null=True)),
+                ('total_funding', models.CharField(blank=True, max_length=50)),
+                ('last_signal', models.CharField(blank=True, max_length=200)),
+            ],
+        ),
+    ]
+
+
+
+================================================
+FILE: backend/api/migrations/__init__.py
+================================================
+
+
+
+================================================
+FILE: backend/backend/__init__.py
+================================================
+
+
+
+================================================
+FILE: backend/backend/asgi.py
+================================================
+"""
+ASGI config for backend project.
+
+It exposes the ASGI callable as a module-level variable named ``application``.
+
+For more information on this file, see
+https://docs.djangoproject.com/en/5.0/howto/deployment/asgi/
+"""
+
+import os
+
+from django.core.asgi import get_asgi_application
+
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings')
+
+application = get_asgi_application()
+
+
+
+================================================
+FILE: backend/backend/settings.py
+================================================
+"""
+Django settings for backend project.
+Generated by 'django-admin startproject' using Django 4.2.
+"""
+
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
+# Build paths inside the project like this: BASE_DIR / 'subdir'.
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+# SECURITY WARNING: keep the secret key used in production secret!
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-change-me-in-production')
+
+# SECURITY WARNING: don't run with debug turned on in production!
+DEBUG = os.getenv('DEBUG', 'True') == 'True'
+
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+
+# Application definition
+INSTALLED_APPS = [
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+    # Third-party apps
+    'rest_framework',
+    'corsheaders',
+    'django_filters',
+    # Local apps
+    'api',
+]
+
+MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',  # Must be as high as possible
+    'django.middleware.security.SecurityMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.common.CommonMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+]
+
+ROOT_URLCONF = 'backend.urls'
+
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'DIRS': [],
+        'APP_DIRS': True,
+        'OPTIONS': {
+            'context_processors': [
+                'django.template.context_processors.debug',
+                'django.template.context_processors.request',
+                'django.contrib.auth.context_processors.auth',
+                'django.contrib.messages.context_processors.messages',
+            ],
+        },
+    },
+]
+
+WSGI_APPLICATION = 'backend.wsgi.application'
+
+# Database
+# https://docs.djangoproject.com/en/4.2/ref/settings/#databases
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
+    }
+}
+
+# Password validation
+AUTH_PASSWORD_VALIDATORS = [
+    {
+        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+    },
+]
+
+# Internationalization
+LANGUAGE_CODE = 'en-us'
+TIME_ZONE = 'UTC'
+USE_I18N = True
+USE_TZ = True
+
+# Static files (CSS, JavaScript, Images)
+STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# Default primary key field type
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# CORS settings (allow frontend dev server)
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:5173',  # Vite default
+    'http://127.0.0.1:5173',
+    'http://localhost:5174',
+    'http://127.0.0.1:5174',
+]
+# For production, add your frontend domain
+if not DEBUG:
+    CORS_ALLOWED_ORIGINS += os.getenv('CORS_ALLOWED_ORIGINS', '').split(',')
+
+# Django REST Framework settings
+REST_FRAMEWORK = {
+    'DEFAULT_FILTER_BACKENDS': [
+        'django_filters.rest_framework.DjangoFilterBackend',
+        'rest_framework.filters.SearchFilter',
+        'rest_framework.filters.OrderingFilter',
+    ],
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 20,  # Adjust as needed
+}
+
+# Custom API keys (used in api/views.py)
+TAVILY_API_KEY = os.getenv('TAVILY_API_KEY')
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
+
+# Security: ensure API keys are set in production
+if not DEBUG and (not TAVILY_API_KEY or not GEMINI_API_KEY):
+    raise ValueError("TAVILY_API_KEY and GEMINI_API_KEY must be set in production")
+
+
+================================================
+FILE: backend/backend/urls.py
+================================================
+from django.contrib import admin
+from django.urls import path, include
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('api/', include('api.urls')),
+]
+
+
+================================================
+FILE: backend/backend/wsgi.py
+================================================
+"""
+WSGI config for backend project.
+
+It exposes the WSGI callable as a module-level variable named ``application``.
+
+For more information on this file, see
+https://docs.djangoproject.com/en/5.0/howto/deployment/wsgi/
+"""
+
+import os
+
+from django.core.wsgi import get_wsgi_application
+
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings')
+
+application = get_wsgi_application()
+
+
+
+================================================
+FILE: frontend/README.md
+================================================
+# React + Vite
+
+This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+
+Currently, two official plugins are available:
+
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+
+## React Compiler
+
+The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+
+## Expanding the ESLint configuration
+
+If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+
+
+
+================================================
+FILE: frontend/eslint.config.js
+================================================
+import js from '@eslint/js'
+import globals from 'globals'
+import reactHooks from 'eslint-plugin-react-hooks'
+import reactRefresh from 'eslint-plugin-react-refresh'
+import { defineConfig, globalIgnores } from 'eslint/config'
+
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{js,jsx}'],
+    extends: [
+      js.configs.recommended,
+      reactHooks.configs.flat.recommended,
+      reactRefresh.configs.vite,
+    ],
+    languageOptions: {
+      ecmaVersion: 2020,
+      globals: globals.browser,
+      parserOptions: {
+        ecmaVersion: 'latest',
+        ecmaFeatures: { jsx: true },
+        sourceType: 'module',
+      },
+    },
+    rules: {
+      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+    },
+  },
+])
+
+
+
+================================================
+FILE: frontend/index.html
+================================================
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>frontend</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
+
+
+
+================================================
+FILE: frontend/package.json
+================================================
+{
+  "name": "frontend",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@tanstack/react-table": "^8.21.3",
+    "axios": "^1.13.5",
+    "lucide-react": "^0.575.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-router-dom": "^7.13.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.1",
+    "autoprefixer": "^10.4.24",
+    "eslint": "^9.39.1",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.4.24",
+    "globals": "^16.5.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.19",
+    "vite": "^7.3.1"
+  }
+}
+
+
+
+================================================
+FILE: frontend/postcss.config.js
+================================================
+export default {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+}
+
+
+
+================================================
+FILE: frontend/tailwind.config.js
+================================================
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: [
+    "./index.html",
+    "./src/**/*.{js,ts,jsx,tsx}",
+  ],
+  theme: {
+    extend: {},
+  },
+  plugins: [],
+}
+
+
+================================================
+FILE: frontend/vite.config.js
+================================================
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import path from 'path'
+
+// https://vite.dev/config/
+export default defineConfig({
+  plugins: [react()],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, 'src'),
+    },
+  },
+})
+
+
+
+================================================
+FILE: frontend/src/App.css
+================================================
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+.logo {
+  height: 6em;
+  padding: 1.5em;
+  will-change: filter;
+  transition: filter 300ms;
+}
+.logo:hover {
+  filter: drop-shadow(0 0 2em #646cffaa);
+}
+.logo.react:hover {
+  filter: drop-shadow(0 0 2em #61dafbaa);
+}
+
+@keyframes logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  a:nth-of-type(2) .logo {
+    animation: logo-spin infinite 20s linear;
+  }
+}
+
+.card {
+  padding: 2em;
+}
+
+.read-the-docs {
+  color: #888;
+}
+
+
+
+================================================
+FILE: frontend/src/App.jsx
+================================================
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import Layout from './components/Layout';
+import CompaniesPage from './pages/CompaniesPage';
+import CompanyDetailPage from './pages/CompanyDetailPage';
+import ListsPage from './pages/ListsPage';
+import SavedSearchesPage from './pages/SavedSearchesPage';
+
+function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Layout />}>
+          <Route index element={<CompaniesPage />} />
+          <Route path="companies" element={<CompaniesPage />} />
+          <Route path="companies/:id" element={<CompanyDetailPage />} />
+          <Route path="lists" element={<ListsPage />} />
+          <Route path="saved" element={<SavedSearchesPage />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
+export default App;
+
+
+================================================
+FILE: frontend/src/index.css
+================================================
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+================================================
+FILE: frontend/src/main.jsx
+================================================
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import './index.css'
+import App from './App.jsx'
+
+createRoot(document.getElementById('root')).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+)
+
+
+
+================================================
+FILE: frontend/src/components/Layout.jsx
+================================================
+import { Link, Outlet, useNavigate } from 'react-router-dom';
+import { Building2, List, Search, Save } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { useState } from 'react';
+
+export default function Layout() {
+  const [searchQuery, setSearchQuery] = useState('');
+  const navigate = useNavigate();
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/companies?search=${encodeURIComponent(searchQuery)}`);
+    }
+  };
+
+  return (
+    <div className="flex h-screen">
+      {/* Sidebar */}
+      <div className="w-64 bg-gray-900 text-white p-4">
+        <h1 className="text-xl font-bold mb-6">VC Intel</h1>
+        <nav className="space-y-2">
+          <Link to="/companies" className="flex items-center gap-2 p-2 hover:bg-gray-800 rounded">
+            <Building2 size={18} /> Companies
+          </Link>
+          <Link to="/lists" className="flex items-center gap-2 p-2 hover:bg-gray-800 rounded">
+            <List size={18} /> Lists
+          </Link>
+          <Link to="/saved" className="flex items-center gap-2 p-2 hover:bg-gray-800 rounded">
+            <Save size={18} /> Saved Searches
+          </Link>
+        </nav>
+      </div>
+
+      {/* Main content */}
+      <div className="flex-1 flex flex-col">
+        {/* Top bar with global search */}
+        <header className="border-b p-4 flex items-center gap-4">
+          <form onSubmit={handleSearch} className="flex-1 max-w-md flex gap-2">
+            <Input
+              type="text"
+              placeholder="Search companies..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            <Button type="submit" size="sm">
+              <Search size={16} />
+            </Button>
+          </form>
+        </header>
+
+        {/* Page content */}
+        <main className="flex-1 overflow-auto p-4">
+          <Outlet />
+        </main>
+      </div>
+    </div>
+  );
+}
+
+
+================================================
+FILE: frontend/src/components/ui/button.jsx
+================================================
+import React from 'react';
+
+export function Button({ children, className = '', variant, size, disabled, ...props }) {
+  const base = 'inline-flex items-center justify-center rounded';
+  const sizeClass = size === 'sm' ? 'px-2 py-1 text-sm' : 'px-3 py-1.5';
+  const variantClass = variant === 'outline' ? 'border' : 'bg-blue-600 text-white';
+  return (
+    <button className={`${base} ${sizeClass} ${variantClass} ${className}`} disabled={disabled} {...props}>
+      {children}
+    </button>
+  );
+}
+
+export default Button;
+
+
+
+================================================
+FILE: frontend/src/components/ui/card.jsx
+================================================
+import React from 'react';
+
+export function Card({ children, className = '' }) {
+  return <div className={`rounded border bg-white ${className}`}>{children}</div>;
+}
+
+export function CardHeader({ children, className = '' }) {
+  return <div className={`px-4 py-2 border-b ${className}`}>{children}</div>;
+}
+
+export function CardTitle({ children, className = '' }) {
+  return <div className={`font-semibold ${className}`}>{children}</div>;
+}
+
+export function CardContent({ children, className = '' }) {
+  return <div className={`p-4 ${className}`}>{children}</div>;
+}
+
+export default Card;
+
+
+
+================================================
+FILE: frontend/src/components/ui/checkbox.jsx
+================================================
+import React from 'react';
+
+export function Checkbox({ id, checked, onCheckedChange, className = '' }) {
+  const handleChange = (e) => onCheckedChange && onCheckedChange(e.target.checked);
+  return (
+    <input
+      id={id}
+      type="checkbox"
+      checked={!!checked}
+      onChange={handleChange}
+      className={className}
+    />
+  );
+}
+
+export default Checkbox;
+
+
+
+================================================
+FILE: frontend/src/components/ui/dialog.jsx
+================================================
+import React, { createContext, useContext } from 'react';
+
+const DialogContext = createContext({ open: false, onOpenChange: () => {} });
+
+export function Dialog({ children, open, onOpenChange }) {
+  return (
+    <DialogContext.Provider value={{ open: !!open, onOpenChange: onOpenChange || (() => {}) }}>
+      {children}
+    </DialogContext.Provider>
+  );
+}
+
+export function DialogTrigger({ children, asChild = false }) {
+  const ctx = useContext(DialogContext);
+  const child = React.Children.only(children);
+  const props = {
+    onClick: (e) => ctx.onOpenChange(true),
+  };
+  if (asChild) {
+    return React.cloneElement(child, props);
+  }
+  return <button onClick={() => ctx.onOpenChange(true)}>{children}</button>;
+}
+
+export function DialogContent({ children }) {
+  const ctx = useContext(DialogContext);
+  if (!ctx.open) return null;
+  return (
+    <div className="fixed inset-0 flex items-center justify-center z-50">
+      <div className="bg-white rounded shadow-lg p-4 max-w-lg w-full">{children}</div>
+    </div>
+  );
+}
+
+export function DialogHeader({ children }) {
+  return <div className="mb-2">{children}</div>;
+}
+
+export function DialogTitle({ children }) {
+  return <h3 className="text-lg font-semibold">{children}</h3>;
+}
+
+export default Dialog;
+
+
+
+================================================
+FILE: frontend/src/components/ui/input.jsx
+================================================
+import React from 'react';
+
+export function Input({ className = '', ...props }) {
+  return <input className={`border rounded px-2 py-1 ${className}`} {...props} />;
+}
+
+export default Input;
+
+
+
+================================================
+FILE: frontend/src/components/ui/label.jsx
+================================================
+import React from 'react';
+
+export function Label({ htmlFor, children, className = '' }) {
+  return (
+    <label htmlFor={htmlFor} className={`text-sm ${className}`}>
+      {children}
+    </label>
+  );
+}
+
+export default Label;
+
+
+
+================================================
+FILE: frontend/src/components/ui/table.jsx
+================================================
+import React from 'react';
+
+export function Table({ children, className = '' }) {
+  return <table className={`min-w-full ${className}`}>{children}</table>;
+}
+
+export function TableHeader({ children, className = '' }) {
+  return <thead className={className}>{children}</thead>;
+}
+
+export function TableBody({ children, className = '' }) {
+  return <tbody className={className}>{children}</tbody>;
+}
+
+export function TableRow({ children, className = '' }) {
+  return <tr className={className}>{children}</tr>;
+}
+
+export function TableHead({ children, className = '' }) {
+  return <th className={`text-left px-4 py-2 ${className}`}>{children}</th>;
+}
+
+export function TableCell({ children, className = '' }) {
+  return <td className={`px-4 py-2 ${className}`}>{children}</td>;
+}
+
+export default Table;
+
+
+
+================================================
+FILE: frontend/src/components/ui/textarea.jsx
+================================================
+import React from 'react';
+
+export function Textarea({ className = '', ...props }) {
+  return <textarea className={`border rounded px-2 py-1 w-full ${className}`} {...props} />;
+}
+
+export default Textarea;
+
+
+
+================================================
+FILE: frontend/src/lib/api.js
+================================================
+import axios from 'axios';
+
+const api = axios.create({
+  baseURL: 'http://localhost:8000/api',
+});
+
+export const getCompanies = async (params) => {
+  const response = await api.get('/companies/', { params });
+  // API uses pagination; return the `results` array for the UI table
+  return response.data.results;
+};
+
+export const getCompany = async (id) => {
+  const response = await api.get(`/companies/${id}/`);
+  return response.data;
+};
+
+export const enrichCompany = async (url) => {
+  const response = await api.post('/enrich/', { url });
+  return response.data;
+};
+
+
+================================================
+FILE: frontend/src/lib/storage.js
+================================================
+// Lists
+export const getLists = () => {
+  const data = localStorage.getItem('vc-lists');
+  return data ? JSON.parse(data) : [];
+};
+
+export const saveLists = (lists) => {
+  localStorage.setItem('vc-lists', JSON.stringify(lists));
+};
+
+// Saved searches
+export const getSavedSearches = () => {
+  const data = localStorage.getItem('vc-saved-searches');
+  return data ? JSON.parse(data) : [];
+};
+
+export const saveSavedSearches = (searches) => {
+  localStorage.setItem('vc-saved-searches', JSON.stringify(searches));
+};
+
+// Company notes
+export const getCompanyNote = (companyId) => {
+  const key = `vc-note-${companyId}`;
+  return localStorage.getItem(key) || '';
+};
+
+export const setCompanyNote = (companyId, note) => {
+  const key = `vc-note-${companyId}`;
+  localStorage.setItem(key, note);
+};
+
+
+================================================
+FILE: frontend/src/pages/CompaniesPage.jsx
+================================================
+import { useEffect, useState, useMemo } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import {
+  useReactTable,
+  getCoreRowModel,
+  getSortedRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  flexRender,
+} from '@tanstack/react-table';
+import { getCompanies } from '../lib/api';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+
+export default function CompaniesPage() {
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+
+  // Global filter from URL or local state
+  const globalFilter = searchParams.get('search') || '';
+
+  useEffect(() => {
+    getCompanies().then((companies) => {
+      setData(companies);
+      setLoading(false);
+    });
+  }, []);
+
+  const columns = useMemo(
+    () => [
+      {
+        accessorKey: 'name',
+        header: 'Name',
+        cell: ({ row }) => (
+          <button
+            className="text-blue-600 hover:underline"
+            onClick={() => navigate(`/companies/${row.original.id}`)}
+          >
+            {row.original.name}
+          </button>
+        ),
+      },
+      { accessorKey: 'industry', header: 'Industry' },
+      { accessorKey: 'location', header: 'Location' },
+      { accessorKey: 'total_funding', header: 'Total Funding' },
+      { accessorKey: 'last_signal', header: 'Last Signal' },
+    ],
+    [navigate]
+  );
+
+  const table = useReactTable({
+    data,
+    columns,
+    state: {
+      globalFilter,
+    },
+    onGlobalFilterChange: () => {}, // readâ€‘only from URL; we can implement local filter input later
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    initialState: {
+      pagination: { pageSize: 10 },
+    },
+  });
+
+  if (loading) return <div>Loading...</div>;
+
+  return (
+    <div>
+      <h1 className="text-2xl font-bold mb-4">Companies</h1>
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <TableHead key={header.id}>
+                    {header.isPlaceholder ? null : (
+                      <div
+                        {...{
+                          className: header.column.getCanSort()
+                            ? 'cursor-pointer select-none'
+                            : '',
+                          onClick: header.column.getToggleSortingHandler(),
+                        }}
+                      >
+                        {flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
+                        {{
+                          asc: ' ðŸ”¼',
+                          desc: ' ðŸ”½',
+                        }[header.column.getIsSorted()] ?? null}
+                      </div>
+                    )}
+                  </TableHead>
+                ))}
+              </TableRow>
+            ))}
+          </TableHeader>
+          <TableBody>
+            {table.getRowModel().rows.map((row) => (
+              <TableRow key={row.id}>
+                {row.getVisibleCells().map((cell) => (
+                  <TableCell key={cell.id}>
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+      <div className="flex items-center justify-end space-x-2 py-4">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => table.previousPage()}
+          disabled={!table.getCanPreviousPage()}
+        >
+          Previous
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => table.nextPage()}
+          disabled={!table.getCanNextPage()}
+        >
+          Next
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+
+================================================
+FILE: frontend/src/pages/CompanyDetailPage.jsx
+================================================
+import { useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
+import { getCompany, enrichCompany } from '../lib/api';
+import { getCompanyNote, setCompanyNote, getLists, saveLists } from '../lib/storage';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+
+export default function CompanyDetailPage() {
+  const { id } = useParams();
+  const [company, setCompany] = useState(null);
+  const [note, setNote] = useState('');
+  const [enrichment, setEnrichment] = useState(null);
+  const [enrichLoading, setEnrichLoading] = useState(false);
+  const [lists, setLists] = useState([]);
+  const [selectedLists, setSelectedLists] = useState({});
+  const [newListName, setNewListName] = useState('');
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  useEffect(() => {
+    getCompany(id).then(setCompany);
+    setNote(getCompanyNote(parseInt(id)));
+    setLists(getLists());
+  }, [id]);
+
+  const handleNoteChange = (e) => {
+    setNote(e.target.value);
+    setCompanyNote(parseInt(id), e.target.value);
+  };
+
+  const handleEnrich = async () => {
+    setEnrichLoading(true);
+    try {
+      const data = await enrichCompany(company.website);
+      setEnrichment(data);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setEnrichLoading(false);
+    }
+  };
+
+  const handleSaveToList = () => {
+    const updatedLists = lists.map((list) => {
+      if (selectedLists[list.id]) {
+        if (!list.companyIds.includes(parseInt(id))) {
+          list.companyIds.push(parseInt(id));
+        }
+      } else {
+        list.companyIds = list.companyIds.filter((cid) => cid !== parseInt(id));
+      }
+      return list;
+    });
+    setLists(updatedLists);
+    saveLists(updatedLists);
+    setDialogOpen(false);
+  };
+
+  const handleCreateList = () => {
+    if (!newListName.trim()) return;
+    const newList = {
+      id: Date.now().toString(),
+      name: newListName,
+      description: '',
+      companyIds: [parseInt(id)],
+    };
+    const updated = [...lists, newList];
+    setLists(updated);
+    saveLists(updated);
+    setNewListName('');
+  };
+
+  if (!company) return <div>Loading...</div>;
+
+  return (
+    <div className="space-y-6">
+      <h1 className="text-3xl font-bold">{company.name}</h1>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="md:col-span-2 space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Company Overview</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p><strong>Website:</strong> <a href={company.website} target="_blank" rel="noreferrer">{company.website}</a></p>
+              <p><strong>Industry:</strong> {company.industry}</p>
+              <p><strong>Location:</strong> {company.location}</p>
+              <p><strong>Founded:</strong> {company.founded}</p>
+              <p><strong>Total Funding:</strong> {company.total_funding}</p>
+              <p><strong>Description:</strong> {company.description}</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Signals Timeline</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p>{company.last_signal || 'No recent signals'}</p>
+              {/* Placeholder for more signals */}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Notes</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Textarea
+                value={note}
+                onChange={handleNoteChange}
+                placeholder="Add your notes here..."
+                rows={4}
+              />
+            </CardContent>
+          </Card>
+
+          {enrichment && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Enriched Data</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p><strong>Summary:</strong> {enrichment.summary}</p>
+                <div className="mt-2">
+                  <strong>What they do:</strong>
+                  <ul className="list-disc pl-5">
+                    {enrichment.what_they_do.map((item, i) => (
+                      <li key={i}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="mt-2">
+                  <strong>Keywords:</strong> {enrichment.keywords.join(', ')}
+                </div>
+                <div className="mt-2">
+                  <strong>Derived Signals:</strong> {enrichment.derived_signals.join(', ')}
+                </div>
+                <p className="text-sm text-gray-500 mt-2">Source: {enrichment.sources[0]}</p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        <div className="space-y-4">
+          <Button onClick={handleEnrich} disabled={enrichLoading} className="w-full">
+            {enrichLoading ? 'Enriching...' : 'Enrich Company'}
+          </Button>
+
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="w-full">Save to List</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add to Lists</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                {lists.map((list) => (
+                  <div key={list.id} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={list.id}
+                      checked={selectedLists[list.id] || false}
+                      onCheckedChange={(checked) =>
+                        setSelectedLists({ ...selectedLists, [list.id]: checked })
+                      }
+                    />
+                    <Label htmlFor={list.id}>{list.name}</Label>
+                  </div>
+                ))}
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="New list name"
+                    value={newListName}
+                    onChange={(e) => setNewListName(e.target.value)}
+                  />
+                  <Button onClick={handleCreateList}>Create</Button>
+                </div>
+                <Button onClick={handleSaveToList} className="w-full">Save</Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+================================================
+FILE: frontend/src/pages/ListsPage.jsx
+================================================
+import { useState, useEffect } from 'react';
+import { getLists, saveLists } from '../lib/storage';
+import { getCompany } from '../lib/api';
+// Using simple HTML + Tailwind instead of unavailable UI components
+import { Link } from 'react-router-dom';
+
+export default function ListsPage() {
+  const [lists, setLists] = useState([]);
+  const [newListName, setNewListName] = useState('');
+  const [companyMap, setCompanyMap] = useState({});
+
+  useEffect(() => {
+    const stored = getLists();
+    setLists(stored);
+
+    // Fetch company details for all companies in lists
+    const companyIds = [...new Set(stored.flatMap((l) => l.companyIds))];
+    Promise.all(companyIds.map((id) => getCompany(id))).then((companies) => {
+      const map = {};
+      companies.forEach((c) => (map[c.id] = c));
+      setCompanyMap(map);
+    });
+  }, []);
+
+  const createList = () => {
+    if (!newListName.trim()) return;
+    const newList = {
+      id: Date.now().toString(),
+      name: newListName,
+      description: '',
+      companyIds: [],
+    };
+    const updated = [...lists, newList];
+    setLists(updated);
+    saveLists(updated);
+    setNewListName('');
+  };
+
+  const exportList = (list) => {
+    const companies = list.companyIds.map((id) => companyMap[id]).filter(Boolean);
+    const csv = [
+      ['Name', 'Website', 'Industry', 'Location', 'Funding'],
+      ...companies.map((c) => [c.name, c.website, c.industry, c.location, c.total_funding]),
+    ]
+      .map((row) => row.join(','))
+      .join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${list.name}.csv`;
+    a.click();
+  };
+
+  return (
+    <div>
+      <h1 className="text-2xl font-bold mb-4">Lists</h1>
+      <div className="flex gap-2 mb-6">
+        <input
+          className="border rounded px-2 py-1 flex-1"
+          placeholder="New list name"
+          value={newListName}
+          onChange={(e) => setNewListName(e.target.value)}
+        />
+        <button
+          className="bg-blue-600 text-white rounded px-3 py-1"
+          onClick={createList}
+        >
+          Create List
+        </button>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {lists.map((list) => (
+          <div key={list.id} className="border rounded p-4">
+            <div className="font-semibold text-lg mb-2">{list.name}</div>
+            <p className="text-sm text-gray-500 mb-2">{list.companyIds.length} companies</p>
+            <div className="space-y-1 max-h-40 overflow-auto mb-2">
+              {list.companyIds.map((id) => {
+                const company = companyMap[id];
+                return company ? (
+                  <div key={id}>
+                    <Link to={`/companies/${id}`} className="text-blue-600 hover:underline">
+                      {company.name}
+                    </Link>
+                  </div>
+                ) : null;
+              })}
+            </div>
+            <button
+              className="mt-2 border rounded px-2 py-1 text-sm"
+              onClick={() => exportList(list)}
+            >
+              Export CSV
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+
+================================================
+FILE: frontend/src/pages/SavedSearchesPage.jsx
+================================================
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { getSavedSearches, saveSavedSearches } from '../lib/storage';
+// Use simple HTML + Tailwind instead of unavailable UI components
+import { Search } from 'lucide-react';
+
+export default function SavedSearchesPage() {
+  const [searches, setSearches] = useState([]);
+  const [newName, setNewName] = useState('');
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    setSearches(getSavedSearches());
+  }, []);
+
+  const createSearch = () => {
+    // In a real app, you'd capture current search params from context or URL
+    // For simplicity, we'll prompt for query/filters later; here just a placeholder
+    if (!newName.trim()) return;
+    const newSearch = {
+      id: Date.now().toString(),
+      name: newName,
+      query: '', // would be actual query
+      filters: {},
+    };
+    const updated = [...searches, newSearch];
+    setSearches(updated);
+    saveSavedSearches(updated);
+    setNewName('');
+  };
+
+  const runSearch = (search) => {
+    // For now, navigate to companies with a dummy query
+    navigate(`/companies?search=${encodeURIComponent(search.name)}`);
+  };
+
+  return (
+    <div>
+      <h1 className="text-2xl font-bold mb-4">Saved Searches</h1>
+      <div className="flex gap-2 mb-6">
+        <input
+          className="border rounded px-2 py-1 flex-1"
+          placeholder="New search name"
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+        />
+        <button className="bg-blue-600 text-white rounded px-3 py-1" onClick={createSearch}>
+          Save Current Search
+        </button>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {searches.map((search) => (
+          <div key={search.id} className="border rounded p-4">
+            <div className="font-semibold text-lg mb-2">{search.name}</div>
+            <div>
+              <button
+                className="border rounded px-2 py-1 text-sm flex items-center"
+                onClick={() => runSearch(search)}
+              >
+                <Search size={16} className="mr-2" /> Run Search
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+

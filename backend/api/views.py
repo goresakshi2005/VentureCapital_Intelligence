@@ -34,7 +34,6 @@ class EnrichCompany(APIView):
         try:
             # 1. Scrape using Tavily Extract
             tavily = TavilyClient(api_key=os.getenv('TAVILY_API_KEY'))
-            # Tavily extract expects a list of URLs
             response = tavily.extract(urls=[url])
             if not response.get('results'):
                 return Response({'error': 'Failed to scrape URL'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -42,7 +41,7 @@ class EnrichCompany(APIView):
 
             # 2. Structure using Gemini
             genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
-            model = genai.GenerativeModel('gemini-1.5-flash')
+            model = genai.GenerativeModel('gemini-2.5-flash')
             prompt = f"""
             Based on the following website content, extract:
             - summary (1-2 sentences)
@@ -53,22 +52,80 @@ class EnrichCompany(APIView):
             Return valid JSON only with keys: summary, what_they_do, keywords, derived_signals.
 
             Content:
-            {content[:10000]}  # limit to 10k chars
+            {content[:10000]}
             """
             gemini_response = model.generate_content(prompt)
-            # Gemini returns text; we need to parse JSON
             text = gemini_response.text
-            # Remove markdown code fences if present
             if text.startswith('```json'):
                 text = text[7:]
             if text.endswith('```'):
                 text = text[:-3]
             data = json.loads(text.strip())
 
-            # Add metadata
             data['sources'] = [url]
-            data['timestamp'] = response['results'][0].get('url')  # or current time
+            data['timestamp'] = response['results'][0].get('url')
             return Response(data)
+
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class AddCompany(APIView):
+    def post(self, request):
+        url = request.data.get('url')
+        if not url:
+            return Response({'error': 'URL required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            # 1. Scrape using Tavily Extract
+            tavily = TavilyClient(api_key=os.getenv('TAVILY_API_KEY'))
+            response = tavily.extract(urls=[url])
+            if not response.get('results'):
+                return Response({'error': 'Failed to scrape URL'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            content = response['results'][0].get('raw_content', '')
+
+            # 2. Extract company info using Gemini
+            genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
+            model = genai.GenerativeModel('gemini-2.5-flash')
+            prompt = f"""
+            Based on the following website content, extract company information with these fields:
+            - name (company name)
+            - description (short description, 1-2 sentences)
+            - industry
+            - location (HQ city and country)
+            - founded (year as integer, if available, otherwise null)
+            - total_funding (e.g., "$10M" if available, otherwise empty string)
+            - last_signal (a recent signal like "Hiring", "Launched product", if available, otherwise empty string)
+            - logo (URL of logo if found, otherwise empty string)
+
+            Return valid JSON only with keys: name, description, industry, location, founded, total_funding, last_signal, logo.
+            If a field is not found, use empty string or null as appropriate.
+
+            Content:
+            {content[:10000]}
+            """
+            gemini_response = model.generate_content(prompt)
+            text = gemini_response.text
+            if text.startswith('```json'):
+                text = text[7:]
+            if text.endswith('```'):
+                text = text[:-3]
+            data = json.loads(text.strip())
+
+            # 3. Create company record
+            company = Company.objects.create(
+                name=data.get('name', ''),
+                website=url,
+                description=data.get('description', ''),
+                industry=data.get('industry', ''),
+                location=data.get('location', ''),
+                founded=data.get('founded'),
+                total_funding=data.get('total_funding', ''),
+                last_signal=data.get('last_signal', ''),
+                logo=data.get('logo', '')
+            )
+            serializer = CompanySerializer(company)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
 
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

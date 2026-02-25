@@ -8,7 +8,7 @@ import {
   getPaginationRowModel,
   flexRender,
 } from '@tanstack/react-table';
-import { getCompanies } from '../lib/api';
+import { getCompanies, addCompany } from '../lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -19,6 +19,14 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { Plus } from 'lucide-react';
 
 export default function CompaniesPage() {
   const [data, setData] = useState([]);
@@ -26,15 +34,42 @@ export default function CompaniesPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  // Global filter from URL or local state
+  // Add company dialog state
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [newCompanyUrl, setNewCompanyUrl] = useState('');
+  const [isAdding, setIsAdding] = useState(false);
+  const [addError, setAddError] = useState('');
+
   const globalFilter = searchParams.get('search') || '';
 
-  useEffect(() => {
+  const fetchCompanies = () => {
+    setLoading(true);
     getCompanies().then((companies) => {
       setData(companies);
       setLoading(false);
     });
+  };
+
+  useEffect(() => {
+    fetchCompanies();
   }, []);
+
+  const handleAddCompany = async (e) => {
+    e.preventDefault();
+    if (!newCompanyUrl.trim()) return;
+    setIsAdding(true);
+    setAddError('');
+    try {
+      await addCompany(newCompanyUrl);
+      await fetchCompanies(); // refresh list
+      setIsAddDialogOpen(false);
+      setNewCompanyUrl('');
+    } catch (error) {
+      setAddError(error.response?.data?.error || 'Failed to add company');
+    } finally {
+      setIsAdding(false);
+    }
+  };
 
   const columns = useMemo(
     () => [
@@ -64,7 +99,7 @@ export default function CompaniesPage() {
     state: {
       globalFilter,
     },
-    onGlobalFilterChange: () => {}, // read‑only from URL; we can implement local filter input later
+    onGlobalFilterChange: () => {},
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
@@ -78,7 +113,43 @@ export default function CompaniesPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-4">Companies</h1>
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-bold">Companies</h1>
+        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus size={16} className="mr-2" /> Add Company
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add New Company</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleAddCompany} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Company Website URL</label>
+                <Input
+                  type="url"
+                  placeholder="https://example.com"
+                  value={newCompanyUrl}
+                  onChange={(e) => setNewCompanyUrl(e.target.value)}
+                  required
+                />
+              </div>
+              {addError && <p className="text-red-500 text-sm">{addError}</p>}
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isAdding}>
+                  {isAdding ? 'Adding...' : 'Add Company'}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
       <div className="rounded-md border">
         <Table>
           <TableHeader>
