@@ -1,0 +1,17 @@
+[
+  {
+    "model": "api.company",
+    "pk": 1,
+    "fields": {
+      "name": "AI Startup",
+      "website": "https://example.com",
+      "description": "Building LLM tools",
+      "logo": "https://via.placeholder.com/150",
+      "industry": "AI",
+      "location": "San Francisco, CA",
+      "founded": 2021,
+      "total_funding": "$5M",
+      "last_signal": "Hiring 2 engineers"
+    }
+  }
+]
