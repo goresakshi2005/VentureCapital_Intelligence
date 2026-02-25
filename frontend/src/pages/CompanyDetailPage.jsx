@@ -102,14 +102,14 @@ export default function CompanyDetailPage() {
     }
   };
 
-  if (!company) return <div className="flex justify-center items-center h-64">Loading...</div>;
+  if (!company) return <div className="flex justify-center items-center h-64 text-text-secondary">Loading...</div>;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center text-gray-600 hover:text-gray-900 dark:text-secondary dark:hover:text-primary"
+          className="flex items-center text-gray-600 hover:text-gray-900 dark:text-text-secondary dark:hover:text-text-primary"
         >
           <ArrowLeft size={20} className="mr-1" /> Back
         </button>
@@ -122,36 +122,61 @@ export default function CompanyDetailPage() {
         </Button>
       </div>
 
-      <h1 className="text-3xl font-bold text-gray-900 dark:text-primary">{company.name}</h1>
+      <h1 className="text-3xl font-bold text-gray-900 dark:text-text-primary">{company.name}</h1>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-2 space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Company Overview</CardTitle>
+              <CardTitle className="text-gray-900 dark:text-text-primary">Company Overview</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
-              <p><span className="font-medium">Website:</span> <a href={company.website} target="_blank" rel="noreferrer" className="text-primary-600 dark:text-primary hover:underline">{company.website}</a></p>
-              <p><span className="font-medium">Industry:</span> {company.industry}</p>
-              <p><span className="font-medium">Location:</span> {company.location}</p>
-              <p><span className="font-medium">Founded:</span> {company.founded || 'N/A'}</p>
-              <p><span className="font-medium">Total Funding:</span> {company.total_funding || 'N/A'}</p>
-              <p><span className="font-medium">Description:</span> {company.description}</p>
+            <CardContent className="space-y-2 text-gray-700 dark:text-text-secondary">
+              <p>
+                <span className="font-medium text-gray-900 dark:text-text-primary">Website:</span>{' '}
+                <a
+                  href={company.website}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-primary-600 dark:text-primary hover:underline"
+                >
+                  {company.website}
+                </a>
+              </p>
+              <p>
+                <span className="font-medium text-gray-900 dark:text-text-primary">Industry:</span>{' '}
+                {company.industry}
+              </p>
+              <p>
+                <span className="font-medium text-gray-900 dark:text-text-primary">Location:</span>{' '}
+                {company.location}
+              </p>
+              <p>
+                <span className="font-medium text-gray-900 dark:text-text-primary">Founded:</span>{' '}
+                {company.founded || 'N/A'}
+              </p>
+              <p>
+                <span className="font-medium text-gray-900 dark:text-text-primary">Total Funding:</span>{' '}
+                {company.total_funding || 'N/A'}
+              </p>
+              <p>
+                <span className="font-medium text-gray-900 dark:text-text-primary">Description:</span>{' '}
+                {company.description}
+              </p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle>Signals Timeline</CardTitle>
+              <CardTitle className="text-gray-900 dark:text-text-primary">Signals Timeline</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="text-gray-700 dark:text-text-secondary">
               <p>{company.last_signal || 'No recent signals'}</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle>Notes</CardTitle>
+              <CardTitle className="text-gray-900 dark:text-text-primary">Notes</CardTitle>
             </CardHeader>
             <CardContent>
               <Textarea
@@ -159,6 +184,7 @@ export default function CompanyDetailPage() {
                 onChange={handleNoteChange}
                 placeholder="Add your notes here..."
                 rows={4}
+                className="bg-white dark:bg-surface-light border-gray-200 dark:border-border text-gray-900 dark:text-text-primary placeholder:text-gray-400 dark:placeholder:text-text-muted"
               />
             </CardContent>
           </Card>
@@ -166,42 +192,55 @@ export default function CompanyDetailPage() {
           {enrichment && (
             <Card>
               <CardHeader>
-                <CardTitle>Enriched Data</CardTitle>
+                <CardTitle className="text-gray-900 dark:text-text-primary">Enriched Data</CardTitle>
               </CardHeader>
-              <CardContent>
-                <p><span className="font-medium">Summary:</span> {enrichment.summary}</p>
-                <div className="mt-2">
-                  <span className="font-medium">What they do:</span>
+              <CardContent className="space-y-2 text-gray-700 dark:text-text-secondary">
+                <p>
+                  <span className="font-medium text-gray-900 dark:text-text-primary">Summary:</span>{' '}
+                  {enrichment.summary}
+                </p>
+                <div>
+                  <span className="font-medium text-gray-900 dark:text-text-primary">What they do:</span>
                   <ul className="list-disc pl-5 mt-1">
                     {enrichment.what_they_do.map((item, i) => (
                       <li key={i}>{item}</li>
                     ))}
                   </ul>
                 </div>
-                <div className="mt-2">
-                  <span className="font-medium">Keywords:</span> {enrichment.keywords.join(', ')}
-                </div>
-                <div className="mt-2">
-                  <span className="font-medium">Derived Signals:</span> {enrichment.derived_signals.join(', ')}
-                </div>
-                <p className="text-sm text-gray-500 dark:text-muted mt-2">Source: {enrichment.sources[0]}</p>
+                <p>
+                  <span className="font-medium text-gray-900 dark:text-text-primary">Keywords:</span>{' '}
+                  {enrichment.keywords.join(', ')}
+                </p>
+                <p>
+                  <span className="font-medium text-gray-900 dark:text-text-primary">Derived Signals:</span>{' '}
+                  {enrichment.derived_signals.join(', ')}
+                </p>
+                <p className="text-sm text-gray-500 dark:text-text-muted mt-2">
+                  Source: {enrichment.sources[0]}
+                </p>
               </CardContent>
             </Card>
           )}
         </div>
 
         <div className="space-y-4">
-          <Button onClick={handleEnrich} disabled={enrichLoading} className="w-full bg-primary-600 hover:bg-primary-700 dark:bg-primary dark:hover:bg-primary-dark">
+          <Button
+            onClick={handleEnrich}
+            disabled={enrichLoading}
+            className="w-full bg-primary-600 hover:bg-primary-700 dark:bg-primary dark:hover:bg-primary-dark"
+          >
             {enrichLoading ? 'Enriching...' : 'Enrich Company'}
           </Button>
 
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" className="w-full">Save to List</Button>
+              <Button variant="outline" className="w-full">
+                Save to List
+              </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Add to Lists</DialogTitle>
+                <DialogTitle className="text-gray-900 dark:text-text-primary">Add to Lists</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
                 {lists.map((list) => (
@@ -213,7 +252,9 @@ export default function CompanyDetailPage() {
                         setSelectedLists({ ...selectedLists, [list.id]: checked })
                       }
                     />
-                    <Label htmlFor={list.id}>{list.name}</Label>
+                    <Label htmlFor={list.id} className="text-gray-700 dark:text-text-secondary">
+                      {list.name}
+                    </Label>
                   </div>
                 ))}
                 <div className="flex gap-2">
@@ -222,9 +263,13 @@ export default function CompanyDetailPage() {
                     value={newListName}
                     onChange={(e) => setNewListName(e.target.value)}
                   />
-                  <Button onClick={handleCreateList} variant="outline">Create</Button>
+                  <Button onClick={handleCreateList} variant="outline">
+                    Create
+                  </Button>
                 </div>
-                <Button onClick={handleSaveToList} className="w-full">Save</Button>
+                <Button onClick={handleSaveToList} className="w-full">
+                  Save
+                </Button>
               </div>
             </DialogContent>
           </Dialog>
@@ -235,14 +280,17 @@ export default function CompanyDetailPage() {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle className="text-gray-900 dark:text-text-primary">Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-600 dark:text-text-secondary">
               This will permanently delete {company.name}. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700 dark:bg-accent-red dark:hover:bg-red-700">
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-red-600 hover:bg-red-700 dark:bg-accent-red dark:hover:bg-red-700"
+            >
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
