@@ -1,6 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  darkMode: 'class', // Enable dark mode if desired
+  darkMode: 'class',
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
@@ -8,29 +8,41 @@ export default {
   theme: {
     extend: {
       colors: {
+        background: '#0B0A1A',
+        surface: '#14132E',
+        'surface-light': '#1E1A3A',
         primary: {
-          50: '#eff6ff',
-          100: '#dbeafe',
-          200: '#bfdbfe',
-          300: '#93c5fd',
-          400: '#60a5fa',
-          500: '#3b82f6',
-          600: '#2563eb',
-          700: '#1d4ed8',
-          800: '#1e40af',
-          900: '#1e3a8a',
+          DEFAULT: '#8B2CFF',
+          light: '#9B5CFF',
+          dark: '#6C1DFF',
+          neon: '#B77CFF',
         },
-        secondary: {
-          50: '#f8fafc',
-          100: '#f1f5f9',
-          200: '#e2e8f0',
-          300: '#cbd5e1',
-          400: '#94a3b8',
-          500: '#64748b',
-          600: '#475569',
-          700: '#334155',
-          800: '#1e293b',
-          900: '#0f172a',
+        text: {
+          primary: '#FFFFFF',
+          secondary: '#E0E0E0',
+          muted: '#A0A0A0',
+          inactive: '#808080',
+        },
+        border: {
+          DEFAULT: '#2A2855',
+          light: '#3A3870',
+        },
+        accent: {
+          teal: '#35E0C5',
+          green: '#7CFF4F',
+          red: '#FF4D4D',
+        },
+        gray: {
+          50: '#f9fafb',
+          100: '#f3f4f6',
+          200: '#e5e7eb',
+          300: '#d1d5db',
+          400: '#9ca3af',
+          500: '#6b7280',
+          600: '#4b5563',
+          700: '#374151',
+          800: '#1f2937',
+          900: '#111827',
         },
       },
       fontFamily: {

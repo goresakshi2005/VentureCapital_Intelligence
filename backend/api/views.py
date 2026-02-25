@@ -81,7 +81,7 @@ class AddCompany(APIView):
             content = response['results'][0].get('raw_content', '')
 
             genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
-            model = genai.GenerativeModel('gemini-1.5-flash')
+            model = genai.GenerativeModel('gemini-2.5-flash')
             prompt = f"""
             Based on the following website content, extract company information with these fields:
             - name (company name)

@@ -30,16 +30,16 @@ export default function Header({ searchQuery, setSearchQuery, onSearch, mobileOp
   };
 
   return (
-    <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between gap-4">
+    <header className="bg-white dark:bg-surface border-b border-gray-200 dark:border-border p-4 flex items-center justify-between gap-4">
       <div className="flex items-center gap-4">
-        <button className="md:hidden p-2 -ml-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700" onClick={() => setMobileOpen && setMobileOpen(true)} aria-label="Open menu">
+        <button className="md:hidden p-2 -ml-2 rounded hover:bg-gray-100 dark:hover:bg-surface-light" onClick={() => setMobileOpen && setMobileOpen(true)} aria-label="Open menu">
           <Menu size={20} />
         </button>
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center text-white font-bold">VI</div>
+          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center text-white font-bold">VI</div>
           <div>
-            <div className="text-lg font-semibold text-gray-800 dark:text-gray-100">VC Intel</div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">Deal intelligence & lists</div>
+            <div className="text-lg font-semibold text-gray-800 dark:text-text-primary">VC Intel</div>
+            <div className="text-xs text-gray-500 dark:text-text-muted">Deal intelligence & lists</div>
           </div>
         </div>
       </div>
@@ -63,8 +63,8 @@ export default function Header({ searchQuery, setSearchQuery, onSearch, mobileOp
         <Button variant="ghost" onClick={toggleTheme} aria-label="Toggle theme">
           {isDark ? <Sun size={18} /> : <Moon size={18} />}
         </Button>
-        <div className="w-8 h-8 bg-primary-100 dark:bg-primary-900 rounded-full flex items-center justify-center">
-          <span className="text-sm font-medium text-primary-600 dark:text-primary-300">U</span>
+        <div className="w-8 h-8 bg-primary-100 dark:bg-primary-dark rounded-full flex items-center justify-center">
+          <span className="text-sm font-medium text-primary-600 dark:text-primary">U</span>
         </div>
       </div>
     </header>

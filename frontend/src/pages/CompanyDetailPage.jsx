@@ -109,20 +109,20 @@ export default function CompanyDetailPage() {
       <div className="flex items-center justify-between">
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
+          className="flex items-center text-gray-600 hover:text-gray-900 dark:text-secondary dark:hover:text-primary"
         >
           <ArrowLeft size={20} className="mr-1" /> Back
         </button>
         <Button
           variant="ghost"
           onClick={() => setDeleteDialogOpen(true)}
-          className="text-red-500 hover:text-red-700 hover:bg-red-50"
+          className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:text-accent-red dark:hover:bg-red-950/30"
         >
           <Trash2 size={18} className="mr-2" /> Delete Company
         </Button>
       </div>
 
-      <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">{company.name}</h1>
+      <h1 className="text-3xl font-bold text-gray-900 dark:text-primary">{company.name}</h1>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-2 space-y-4">
@@ -131,7 +131,7 @@ export default function CompanyDetailPage() {
               <CardTitle>Company Overview</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <p><span className="font-medium">Website:</span> <a href={company.website} target="_blank" rel="noreferrer" className="text-primary-600 hover:underline">{company.website}</a></p>
+              <p><span className="font-medium">Website:</span> <a href={company.website} target="_blank" rel="noreferrer" className="text-primary-600 dark:text-primary hover:underline">{company.website}</a></p>
               <p><span className="font-medium">Industry:</span> {company.industry}</p>
               <p><span className="font-medium">Location:</span> {company.location}</p>
               <p><span className="font-medium">Founded:</span> {company.founded || 'N/A'}</p>
@@ -184,14 +184,14 @@ export default function CompanyDetailPage() {
                 <div className="mt-2">
                   <span className="font-medium">Derived Signals:</span> {enrichment.derived_signals.join(', ')}
                 </div>
-                <p className="text-sm text-gray-500 mt-2">Source: {enrichment.sources[0]}</p>
+                <p className="text-sm text-gray-500 dark:text-muted mt-2">Source: {enrichment.sources[0]}</p>
               </CardContent>
             </Card>
           )}
         </div>
 
         <div className="space-y-4">
-          <Button onClick={handleEnrich} disabled={enrichLoading} className="w-full bg-primary-600 hover:bg-primary-700">
+          <Button onClick={handleEnrich} disabled={enrichLoading} className="w-full bg-primary-600 hover:bg-primary-700 dark:bg-primary dark:hover:bg-primary-dark">
             {enrichLoading ? 'Enriching...' : 'Enrich Company'}
           </Button>
 
@@ -242,7 +242,7 @@ export default function CompanyDetailPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">
+            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700 dark:bg-accent-red dark:hover:bg-red-700">
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

@@ -45,13 +45,11 @@ export default function CompaniesPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  // Add company dialog state
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [newCompanyUrl, setNewCompanyUrl] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [addError, setAddError] = useState('');
 
-  // Delete confirmation state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [companyToDelete, setCompanyToDelete] = useState(null);
 
@@ -118,7 +116,7 @@ export default function CompaniesPage() {
         header: 'Name',
         cell: ({ row }) => (
           <button
-            className="text-primary-600 hover:underline font-medium"
+            className="text-primary-600 dark:text-primary hover:underline font-medium"
             onClick={() => navigate(`/companies/${row.original.id}`)}
           >
             {row.original.name}
@@ -137,7 +135,7 @@ export default function CompaniesPage() {
             variant="ghost"
             size="sm"
             onClick={() => handleDeleteClick(row.original)}
-            className="text-red-500 hover:text-red-700 hover:bg-red-50"
+            className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:text-accent-red dark:hover:bg-red-950/30"
           >
             <Trash2 size={16} />
           </Button>
@@ -150,23 +148,19 @@ export default function CompaniesPage() {
   const table = useReactTable({
     data,
     columns,
-    state: {
-      globalFilter,
-    },
+    state: { globalFilter },
     onGlobalFilterChange: () => {},
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    initialState: {
-      pagination: { pageSize: 10 },
-    },
+    initialState: { pagination: { pageSize: 10 } },
   });
 
-  if (loading) return <div className="flex justify-center items-center h-64">Loading...</div>;
+  if (loading) return <div className="flex justify-center items-center h-64 text-text-secondary">Loading...</div>;
   if (error)
     return (
-      <div className="flex justify-center items-center h-64 text-red-600">
+      <div className="flex justify-center items-center h-64 text-red-600 dark:text-accent-red">
         Error: {error}
       </div>
     );
@@ -174,10 +168,10 @@ export default function CompaniesPage() {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Companies</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-text-primary">Companies</h1>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="bg-primary-600 hover:bg-primary-700">
+            <Button className="bg-primary-600 hover:bg-primary-700 dark:bg-primary dark:hover:bg-primary-dark">
               <Plus size={16} className="mr-2" /> Add Company
             </Button>
           </DialogTrigger>
@@ -187,7 +181,7 @@ export default function CompaniesPage() {
             </DialogHeader>
             <form onSubmit={handleAddCompany} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Company Website URL</label>
+                <label className="block text-sm font-medium mb-1 dark:text-text-secondary">Company Website URL</label>
                 <Input
                   type="url"
                   placeholder="https://example.com"
@@ -196,7 +190,7 @@ export default function CompaniesPage() {
                   required
                 />
               </div>
-              {addError && <p className="text-red-500 text-sm">{addError}</p>}
+              {addError && <p className="text-red-500 dark:text-accent-red text-sm">{addError}</p>}
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
                   Cancel
@@ -210,7 +204,7 @@ export default function CompaniesPage() {
         </Dialog>
       </div>
 
-      <div className="rounded-lg border bg-white dark:bg-gray-800 shadow-sm">
+      <div className="rounded-lg border border-gray-200 dark:border-border bg-white dark:bg-surface shadow-sm">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -226,10 +220,7 @@ export default function CompaniesPage() {
                           onClick: header.column.getToggleSortingHandler(),
                         }}
                       >
-                        {flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
+                        {flexRender(header.column.columnDef.header, header.getContext())}
                         {{
                           asc: ' 🔼',
                           desc: ' 🔽',
@@ -256,7 +247,7 @@ export default function CompaniesPage() {
       </div>
 
       <div className="flex items-center justify-between space-x-2 py-4">
-        <div className="text-sm text-gray-500">
+        <div className="text-sm text-gray-500 dark:text-text-muted">
           Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
         </div>
         <div className="flex gap-2">
@@ -279,7 +270,6 @@ export default function CompaniesPage() {
         </div>
       </div>
 
-      {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -290,7 +280,7 @@ export default function CompaniesPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700">
+            <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700 dark:bg-accent-red dark:hover:bg-red-700">
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

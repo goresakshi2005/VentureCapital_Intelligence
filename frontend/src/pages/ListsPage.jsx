@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { getLists, deleteList } from '../lib/storage';
+import { getLists, deleteList, saveLists } from '../lib/storage';
 import { getCompany } from '../lib/api';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -86,31 +87,35 @@ export default function ListsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6 text-gray-900 dark:text-gray-100">Lists</h1>
+      <h1 className="text-2xl font-bold mb-6 text-gray-900 dark:text-text-primary">Lists</h1>
       <div className="flex gap-2 mb-6">
-        <input
-          className="border rounded-lg px-3 py-2 flex-1 dark:bg-gray-800 dark:border-gray-700"
+        <Input
           placeholder="New list name"
           value={newListName}
           onChange={(e) => setNewListName(e.target.value)}
+          className="flex-1"
         />
-        <Button onClick={createList} className="bg-primary-600 hover:bg-primary-700">
+        <Button onClick={createList} className="bg-primary-600 hover:bg-primary-700 dark:bg-primary dark:hover:bg-primary-dark">
           Create List
         </Button>
       </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {lists.map((list) => (
-          <div key={list.id} className="border rounded-lg p-4 bg-white dark:bg-gray-800 shadow-sm">
+          <div
+            key={list.id}
+            className="border rounded-lg p-4 bg-white dark:bg-surface border-gray-200 dark:border-border shadow-sm"
+          >
             <div className="flex justify-between items-start">
               <div>
-                <h3 className="font-semibold text-lg">{list.name}</h3>
-                <p className="text-sm text-gray-500">{list.companyIds.length} companies</p>
+                <h3 className="font-semibold text-lg text-gray-900 dark:text-text-primary">{list.name}</h3>
+                <p className="text-sm text-gray-500 dark:text-text-muted">{list.companyIds.length} companies</p>
               </div>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => handleDeleteClick(list)}
-                className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:text-accent-red dark:hover:bg-red-950/30"
               >
                 <Trash2 size={16} />
               </Button>
@@ -120,7 +125,10 @@ export default function ListsPage() {
                 const company = companyMap[id];
                 return company ? (
                   <div key={id}>
-                    <Link to={`/companies/${id}`} className="text-primary-600 hover:underline text-sm">
+                    <Link
+                      to={`/companies/${id}`}
+                      className="text-primary-600 dark:text-primary hover:underline text-sm"
+                    >
                       {company.name}
                     </Link>
                   </div>
@@ -150,7 +158,7 @@ export default function ListsPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700">
+            <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700 dark:bg-accent-red dark:hover:bg-red-700">
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
