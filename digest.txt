@@ -38,8 +38,10 @@ Directory structure:
             ├── index.css
             ├── main.jsx
             ├── components/
+            │   ├── Header.jsx
             │   ├── Layout.jsx
             │   └── ui/
+            │       ├── alert-dialog.jsx
             │       ├── button.jsx
             │       ├── card.jsx
             │       ├── checkbox.jsx
@@ -50,7 +52,8 @@ Directory structure:
             │       └── textarea.jsx
             ├── lib/
             │   ├── api.js
-            │   └── storage.js
+            │   ├── storage.js
+            │   └── utils.js
             └── pages/
                 ├── CompaniesPage.jsx
                 ├── CompanyDetailPage.jsx
@@ -192,16 +195,15 @@ from django_filters.rest_framework import DjangoFilterBackend
 from .models import Company
 from .serializers import CompanySerializer
 
-class CompanyList(generics.ListAPIView):
+class CompanyList(generics.ListCreateAPIView):  # Changed to ListCreateAPIView (if you want POST, but we have add-company)
     queryset = Company.objects.all()
     serializer_class = CompanySerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['name', 'description', 'industry']
     ordering_fields = ['name', 'founded', 'total_funding']
     filterset_fields = ['industry', 'location']
-    # pagination can be added if needed
 
-class CompanyDetail(generics.RetrieveAPIView):
+class CompanyDetail(generics.RetrieveUpdateDestroyAPIView):  # Added Destroy
     queryset = Company.objects.all()
     serializer_class = CompanySerializer
 
@@ -221,16 +223,14 @@ class EnrichCompany(APIView):
             return Response({'error': 'URL required'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            # 1. Scrape using Tavily Extract
             tavily = TavilyClient(api_key=os.getenv('TAVILY_API_KEY'))
             response = tavily.extract(urls=[url])
             if not response.get('results'):
                 return Response({'error': 'Failed to scrape URL'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             content = response['results'][0].get('raw_content', '')
 
-            # 2. Structure using Gemini
             genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
-            model = genai.GenerativeModel('gemini-2.5-flash')
+            model = genai.GenerativeModel('gemini-1.5-flash')
             prompt = f"""
             Based on the following website content, extract:
             - summary (1-2 sentences)
@@ -266,16 +266,14 @@ class AddCompany(APIView):
             return Response({'error': 'URL required'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            # 1. Scrape using Tavily Extract
             tavily = TavilyClient(api_key=os.getenv('TAVILY_API_KEY'))
             response = tavily.extract(urls=[url])
             if not response.get('results'):
                 return Response({'error': 'Failed to scrape URL'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             content = response['results'][0].get('raw_content', '')
 
-            # 2. Extract company info using Gemini
             genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
-            model = genai.GenerativeModel('gemini-2.5-flash')
+            model = genai.GenerativeModel('gemini-1.5-flash')
             prompt = f"""
             Based on the following website content, extract company information with these fields:
             - name (company name)
@@ -301,7 +299,6 @@ class AddCompany(APIView):
                 text = text[:-3]
             data = json.loads(text.strip())
 
-            # 3. Create company record
             company = Company.objects.create(
                 name=data.get('name', ''),
                 website=url,
@@ -657,6 +654,19 @@ FILE: frontend/index.html
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      (function() {
+        try {
+          const theme = localStorage.getItem('theme');
+          const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          if (theme === 'dark' || (!theme && prefersDark)) {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+        } catch (e) {}
+      })();
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
@@ -678,12 +688,15 @@ FILE: frontend/package.json
     "preview": "vite preview"
   },
   "dependencies": {
+    "@radix-ui/react-alert-dialog": "^1.1.15",
     "@tanstack/react-table": "^8.21.3",
     "axios": "^1.13.5",
+    "clsx": "^2.1.1",
     "lucide-react": "^0.575.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "react-router-dom": "^7.13.1"
+    "react-router-dom": "^7.13.1",
+    "tailwind-merge": "^3.5.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
@@ -720,12 +733,43 @@ FILE: frontend/tailwind.config.js
 ================================================
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: 'class', // Enable dark mode if desired
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        primary: {
+          50: '#eff6ff',
+          100: '#dbeafe',
+          200: '#bfdbfe',
+          300: '#93c5fd',
+          400: '#60a5fa',
+          500: '#3b82f6',
+          600: '#2563eb',
+          700: '#1d4ed8',
+          800: '#1e40af',
+          900: '#1e3a8a',
+        },
+        secondary: {
+          50: '#f8fafc',
+          100: '#f1f5f9',
+          200: '#e2e8f0',
+          300: '#cbd5e1',
+          400: '#94a3b8',
+          500: '#64748b',
+          600: '#475569',
+          700: '#334155',
+          800: '#1e293b',
+          900: '#0f172a',
+        },
+      },
+      fontFamily: {
+        sans: ['Inter', 'system-ui', 'sans-serif'],
+      },
+    },
   },
   plugins: [],
 }
@@ -830,9 +874,20 @@ export default App;
 ================================================
 FILE: frontend/src/index.css
 ================================================
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+html {
+	transition: background-color 200ms ease, color 200ms ease;
+}
+
+body {
+	-webkit-font-smoothing:antialiased;
+	-moz-osx-font-smoothing:grayscale;
+}
 
 
 ================================================
@@ -852,16 +907,95 @@ createRoot(document.getElementById('root')).render(
 
 
 ================================================
+FILE: frontend/src/components/Header.jsx
+================================================
+import { Search, Sun, Moon, Menu } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { useEffect, useState } from 'react';
+
+export default function Header({ searchQuery, setSearchQuery, onSearch, mobileOpen, setMobileOpen }) {
+  const [isDark, setIsDark] = useState(false);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('theme');
+      if (stored === 'dark') setIsDark(true);
+      else if (stored === 'light') setIsDark(false);
+      else setIsDark(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    } catch (e) {}
+  }, []);
+
+  const toggleTheme = () => {
+    const next = !isDark;
+    setIsDark(next);
+    try {
+      if (next) {
+        document.documentElement.classList.add('dark');
+        localStorage.setItem('theme', 'dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+        localStorage.setItem('theme', 'light');
+      }
+    } catch (e) {}
+  };
+
+  return (
+    <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between gap-4">
+      <div className="flex items-center gap-4">
+        <button className="md:hidden p-2 -ml-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700" onClick={() => setMobileOpen && setMobileOpen(true)} aria-label="Open menu">
+          <Menu size={20} />
+        </button>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center text-white font-bold">VI</div>
+          <div>
+            <div className="text-lg font-semibold text-gray-800 dark:text-gray-100">VC Intel</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">Deal intelligence & lists</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex-1 max-w-xl mx-6">
+        <form onSubmit={onSearch} className="flex items-center gap-2">
+          <Input
+            type="text"
+            placeholder="Search companies..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full"
+          />
+          <Button type="submit" size="sm">
+            <Search size={16} />
+          </Button>
+        </form>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <Button variant="ghost" onClick={toggleTheme} aria-label="Toggle theme">
+          {isDark ? <Sun size={18} /> : <Moon size={18} />}
+        </Button>
+        <div className="w-8 h-8 bg-primary-100 dark:bg-primary-900 rounded-full flex items-center justify-center">
+          <span className="text-sm font-medium text-primary-600 dark:text-primary-300">U</span>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+
+
+================================================
 FILE: frontend/src/components/Layout.jsx
 ================================================
 import { Link, Outlet, useNavigate } from 'react-router-dom';
-import { Building2, List, Search, Save } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Building2, List, Save, User } from 'lucide-react';
+import Header from './Header';
 import { useState } from 'react';
+import { X } from 'lucide-react';
 
 export default function Layout() {
   const [searchQuery, setSearchQuery] = useState('');
+  const [mobileOpen, setMobileOpen] = useState(false);
   const navigate = useNavigate();
 
   const handleSearch = (e) => {
@@ -872,42 +1006,66 @@ export default function Layout() {
   };
 
   return (
-    <div className="flex h-screen">
-      {/* Sidebar */}
-      <div className="w-64 bg-gray-900 text-white p-4">
-        <h1 className="text-xl font-bold mb-6">VC Intel</h1>
-        <nav className="space-y-2">
-          <Link to="/companies" className="flex items-center gap-2 p-2 hover:bg-gray-800 rounded">
-            <Building2 size={18} /> Companies
+    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
+      {/* Sidebar (hidden on small screens) */}
+      <div className="hidden md:flex w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex-col">
+        <div className="p-6">
+          <h1 className="text-2xl font-bold text-primary-600 dark:text-primary-400">VC Intel</h1>
+        </div>
+        <nav className="flex-1 px-4 space-y-1">
+          <Link to="/companies" className="flex items-center gap-3 px-3 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+            <Building2 size={20} /> Companies
           </Link>
-          <Link to="/lists" className="flex items-center gap-2 p-2 hover:bg-gray-800 rounded">
-            <List size={18} /> Lists
+          <Link to="/lists" className="flex items-center gap-3 px-3 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+            <List size={20} /> Lists
           </Link>
-          <Link to="/saved" className="flex items-center gap-2 p-2 hover:bg-gray-800 rounded">
-            <Save size={18} /> Saved Searches
+          <Link to="/saved" className="flex items-center gap-3 px-3 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+            <Save size={20} /> Saved Searches
           </Link>
         </nav>
+        <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-primary-100 dark:bg-primary-900 rounded-full flex items-center justify-center">
+              <User size={18} className="text-primary-600 dark:text-primary-300" />
+            </div>
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-200">VC User</span>
+          </div>
+        </div>
       </div>
 
+      {/* Mobile sidebar overlay */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-40 md:hidden">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setMobileOpen(false)} />
+          <aside className="absolute left-0 top-0 bottom-0 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 p-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-primary-600 dark:text-primary-300">VC Intel</h2>
+              <button onClick={() => setMobileOpen(false)} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700">
+                <X size={20} />
+              </button>
+            </div>
+            <nav className="space-y-1">
+              <Link to="/companies" className="flex items-center gap-3 px-3 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+                <Building2 size={20} /> Companies
+              </Link>
+              <Link to="/lists" className="flex items-center gap-3 px-3 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+                <List size={20} /> Lists
+              </Link>
+              <Link to="/saved" className="flex items-center gap-3 px-3 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+                <Save size={20} /> Saved Searches
+              </Link>
+            </nav>
+          </aside>
+        </div>
+      )}
+
       {/* Main content */}
-      <div className="flex-1 flex flex-col">
-        {/* Top bar with global search */}
-        <header className="border-b p-4 flex items-center gap-4">
-          <form onSubmit={handleSearch} className="flex-1 max-w-md flex gap-2">
-            <Input
-              type="text"
-              placeholder="Search companies..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-            <Button type="submit" size="sm">
-              <Search size={16} />
-            </Button>
-          </form>
-        </header>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Top header */}
+        <Header searchQuery={searchQuery} setSearchQuery={setSearchQuery} onSearch={handleSearch} />
 
         {/* Page content */}
-        <main className="flex-1 overflow-auto p-4">
+        <main className="flex-1 overflow-auto p-6 bg-gray-50 dark:bg-gray-900">
           <Outlet />
         </main>
       </div>
@@ -917,16 +1075,136 @@ export default function Layout() {
 
 
 ================================================
+FILE: frontend/src/components/ui/alert-dialog.jsx
+================================================
+import * as React from "react"
+import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog"
+
+import { cn } from "@/lib/utils"
+import { buttonVariants } from "@/components/ui/button"
+
+const AlertDialog = AlertDialogPrimitive.Root
+const AlertDialogTrigger = AlertDialogPrimitive.Trigger
+const AlertDialogPortal = AlertDialogPrimitive.Portal
+
+const AlertDialogOverlay = React.forwardRef(({ className, ...props }, ref) => (
+  <AlertDialogPrimitive.Overlay
+    className={cn(
+      "fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      className
+    )}
+    {...props}
+    ref={ref}
+  />
+))
+AlertDialogOverlay.displayName = AlertDialogPrimitive.Overlay.displayName
+
+const AlertDialogContent = React.forwardRef(({ className, ...props }, ref) => (
+  <AlertDialogPortal>
+    <AlertDialogOverlay />
+    <AlertDialogPrimitive.Content
+      ref={ref}
+      className={cn(
+        "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-white dark:bg-gray-950 p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg",
+        className
+      )}
+      {...props}
+    />
+  </AlertDialogPortal>
+))
+AlertDialogContent.displayName = AlertDialogPrimitive.Content.displayName
+
+const AlertDialogHeader = ({
+  className,
+  ...props
+}) => (
+  <div
+    className={cn("flex flex-col space-y-2 text-center sm:text-left", className)}
+    {...props}
+  />
+)
+AlertDialogHeader.displayName = "AlertDialogHeader"
+
+const AlertDialogFooter = ({
+  className,
+  ...props
+}) => (
+  <div
+    className={cn("flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2", className)}
+    {...props}
+  />
+)
+AlertDialogFooter.displayName = "AlertDialogFooter"
+
+const AlertDialogTitle = React.forwardRef(({ className, ...props }, ref) => (
+  <AlertDialogPrimitive.Title
+    ref={ref}
+    className={cn("text-lg font-semibold", className)}
+    {...props}
+  />
+))
+AlertDialogTitle.displayName = AlertDialogPrimitive.Title.displayName
+
+const AlertDialogDescription = React.forwardRef(({ className, ...props }, ref) => (
+  <AlertDialogPrimitive.Description
+    ref={ref}
+    className={cn("text-sm text-muted-foreground", className)}
+    {...props}
+  />
+))
+AlertDialogDescription.displayName = AlertDialogPrimitive.Description.displayName
+
+const AlertDialogAction = React.forwardRef(({ className, ...props }, ref) => (
+  <AlertDialogPrimitive.Action
+    ref={ref}
+    className={cn(buttonVariants(), className)}
+    {...props}
+  />
+))
+AlertDialogAction.displayName = AlertDialogPrimitive.Action.displayName
+
+const AlertDialogCancel = React.forwardRef(({ className, ...props }, ref) => (
+  <AlertDialogPrimitive.Cancel
+    ref={ref}
+    className={cn(buttonVariants({ variant: "outline" }), "mt-2 sm:mt-0", className)}
+    {...props}
+  />
+))
+AlertDialogCancel.displayName = AlertDialogPrimitive.Cancel.displayName
+
+export {
+  AlertDialog,
+  AlertDialogPortal,
+  AlertDialogOverlay,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+}
+
+
+================================================
 FILE: frontend/src/components/ui/button.jsx
 ================================================
 import React from 'react';
 
-export function Button({ children, className = '', variant, size, disabled, ...props }) {
+export function buttonVariants({ variant, size, className = '' } = {}) {
   const base = 'inline-flex items-center justify-center rounded';
   const sizeClass = size === 'sm' ? 'px-2 py-1 text-sm' : 'px-3 py-1.5';
-  const variantClass = variant === 'outline' ? 'border' : 'bg-blue-600 text-white';
+  let variantClass = 'bg-primary-600 text-white';
+  if (variant === 'outline') variantClass = 'border border-gray-200 dark:border-gray-700 bg-transparent';
+  if (variant === 'ghost') variantClass = 'bg-transparent hover:bg-gray-100 dark:hover:bg-gray-700';
+  return `${base} ${sizeClass} ${variantClass} ${className}`.trim();
+}
+
+export function Button({ children, className = '', variant, size, disabled, ...props }) {
+  const classes = buttonVariants({ variant, size, className });
   return (
-    <button className={`${base} ${sizeClass} ${variantClass} ${className}`} disabled={disabled} {...props}>
+    <button className={classes} disabled={disabled} {...props}>
       {children}
     </button>
   );
@@ -942,11 +1220,11 @@ FILE: frontend/src/components/ui/card.jsx
 import React from 'react';
 
 export function Card({ children, className = '' }) {
-  return <div className={`rounded border bg-white ${className}`}>{children}</div>;
+  return <div className={`rounded-lg border bg-white dark:bg-gray-800 dark:border-gray-700 shadow-sm ${className}`}>{children}</div>;
 }
 
 export function CardHeader({ children, className = '' }) {
-  return <div className={`px-4 py-2 border-b ${className}`}>{children}</div>;
+  return <div className={`px-4 py-3 border-b border-gray-100 dark:border-gray-700 ${className}`}>{children}</div>;
 }
 
 export function CardTitle({ children, className = '' }) {
@@ -1068,7 +1346,7 @@ FILE: frontend/src/components/ui/table.jsx
 import React from 'react';
 
 export function Table({ children, className = '' }) {
-  return <table className={`min-w-full ${className}`}>{children}</table>;
+  return <table className={`min-w-full divide-y divide-gray-200 dark:divide-gray-700 ${className}`}>{children}</table>;
 }
 
 export function TableHeader({ children, className = '' }) {
@@ -1080,15 +1358,15 @@ export function TableBody({ children, className = '' }) {
 }
 
 export function TableRow({ children, className = '' }) {
-  return <tr className={className}>{children}</tr>;
+  return <tr className={`hover:bg-gray-50 dark:hover:bg-gray-800 ${className}`}>{children}</tr>;
 }
 
 export function TableHead({ children, className = '' }) {
-  return <th className={`text-left px-4 py-2 ${className}`}>{children}</th>;
+  return <th className={`text-left px-4 py-3 text-xs font-medium text-gray-700 dark:text-gray-200 uppercase tracking-wide ${className}`}>{children}</th>;
 }
 
 export function TableCell({ children, className = '' }) {
-  return <td className={`px-4 py-2 ${className}`}>{children}</td>;
+  return <td className={`px-4 py-3 text-sm text-gray-600 dark:text-gray-300 ${className}`}>{children}</td>;
 }
 
 export default Table;
@@ -1114,7 +1392,7 @@ FILE: frontend/src/lib/api.js
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'http://localhost:8000/api',
+  baseURL: 'http://localhost:8000/api/',
 });
 
 export const getCompanies = async (params) => {
@@ -1137,6 +1415,11 @@ export const addCompany = async (url) => {
   return response.data;
 };
 
+export const deleteCompany = async (id) => {
+  const response = await api.delete(`/companies/${id}/`);
+  return response.data;
+};
+
 
 ================================================
 FILE: frontend/src/lib/storage.js
@@ -1151,6 +1434,13 @@ export const saveLists = (lists) => {
   localStorage.setItem('vc-lists', JSON.stringify(lists));
 };
 
+export const deleteList = (listId) => {
+  const lists = getLists();
+  const updated = lists.filter(list => list.id !== listId);
+  saveLists(updated);
+  return updated;
+};
+
 // Saved searches
 export const getSavedSearches = () => {
   const data = localStorage.getItem('vc-saved-searches');
@@ -1159,6 +1449,13 @@ export const getSavedSearches = () => {
 
 export const saveSavedSearches = (searches) => {
   localStorage.setItem('vc-saved-searches', JSON.stringify(searches));
+};
+
+export const deleteSavedSearch = (searchId) => {
+  const searches = getSavedSearches();
+  const updated = searches.filter(s => s.id !== searchId);
+  saveSavedSearches(updated);
+  return updated;
 };
 
 // Company notes
@@ -1174,6 +1471,17 @@ export const setCompanyNote = (companyId, note) => {
 
 
 ================================================
+FILE: frontend/src/lib/utils.js
+================================================
+import { clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+export function cn(...inputs) {
+  return twMerge(clsx(inputs));
+}
+
+
+================================================
 FILE: frontend/src/pages/CompaniesPage.jsx
 ================================================
 import { useEffect, useState, useMemo } from 'react';
@@ -1186,7 +1494,7 @@ import {
   getPaginationRowModel,
   flexRender,
 } from '@tanstack/react-table';
-import { getCompanies, addCompany } from '../lib/api';
+import { getCompanies, addCompany, deleteCompany } from '../lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -1204,11 +1512,22 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Plus } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Plus, Trash2 } from 'lucide-react';
 
 export default function CompaniesPage() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
@@ -1218,14 +1537,25 @@ export default function CompaniesPage() {
   const [isAdding, setIsAdding] = useState(false);
   const [addError, setAddError] = useState('');
 
+  // Delete confirmation state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [companyToDelete, setCompanyToDelete] = useState(null);
+
   const globalFilter = searchParams.get('search') || '';
 
   const fetchCompanies = () => {
     setLoading(true);
-    getCompanies().then((companies) => {
-      setData(companies);
-      setLoading(false);
-    });
+    setError('');
+    getCompanies()
+      .then((companies) => {
+        setData(companies);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error('Failed to fetch companies', err);
+        setError(err.response?.data?.detail || err.message || 'Failed to load companies');
+        setLoading(false);
+      });
   };
 
   useEffect(() => {
@@ -1239,13 +1569,31 @@ export default function CompaniesPage() {
     setAddError('');
     try {
       await addCompany(newCompanyUrl);
-      await fetchCompanies(); // refresh list
+      await fetchCompanies();
       setIsAddDialogOpen(false);
       setNewCompanyUrl('');
     } catch (error) {
       setAddError(error.response?.data?.error || 'Failed to add company');
     } finally {
       setIsAdding(false);
+    }
+  };
+
+  const handleDeleteClick = (company) => {
+    setCompanyToDelete(company);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!companyToDelete) return;
+    try {
+      await deleteCompany(companyToDelete.id);
+      await fetchCompanies();
+    } catch (error) {
+      console.error('Delete failed:', error);
+    } finally {
+      setDeleteDialogOpen(false);
+      setCompanyToDelete(null);
     }
   };
 
@@ -1256,7 +1604,7 @@ export default function CompaniesPage() {
         header: 'Name',
         cell: ({ row }) => (
           <button
-            className="text-blue-600 hover:underline"
+            className="text-primary-600 hover:underline font-medium"
             onClick={() => navigate(`/companies/${row.original.id}`)}
           >
             {row.original.name}
@@ -1267,6 +1615,20 @@ export default function CompaniesPage() {
       { accessorKey: 'location', header: 'Location' },
       { accessorKey: 'total_funding', header: 'Total Funding' },
       { accessorKey: 'last_signal', header: 'Last Signal' },
+      {
+        id: 'actions',
+        header: 'Actions',
+        cell: ({ row }) => (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handleDeleteClick(row.original)}
+            className="text-red-500 hover:text-red-700 hover:bg-red-50"
+          >
+            <Trash2 size={16} />
+          </Button>
+        ),
+      },
     ],
     [navigate]
   );
@@ -1287,15 +1649,21 @@ export default function CompaniesPage() {
     },
   });
 
-  if (loading) return <div>Loading...</div>;
+  if (loading) return <div className="flex justify-center items-center h-64">Loading...</div>;
+  if (error)
+    return (
+      <div className="flex justify-center items-center h-64 text-red-600">
+        Error: {error}
+      </div>
+    );
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">Companies</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Companies</h1>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
-            <Button>
+            <Button className="bg-primary-600 hover:bg-primary-700">
               <Plus size={16} className="mr-2" /> Add Company
             </Button>
           </DialogTrigger>
@@ -1328,7 +1696,7 @@ export default function CompaniesPage() {
         </Dialog>
       </div>
 
-      <div className="rounded-md border">
+      <div className="rounded-lg border bg-white dark:bg-gray-800 shadow-sm">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -1372,24 +1740,48 @@ export default function CompaniesPage() {
           </TableBody>
         </Table>
       </div>
-      <div className="flex items-center justify-end space-x-2 py-4">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => table.previousPage()}
-          disabled={!table.getCanPreviousPage()}
-        >
-          Previous
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => table.nextPage()}
-          disabled={!table.getCanNextPage()}
-        >
-          Next
-        </Button>
+
+      <div className="flex items-center justify-between space-x-2 py-4">
+        <div className="text-sm text-gray-500">
+          Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => table.previousPage()}
+            disabled={!table.getCanPreviousPage()}
+          >
+            Previous
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => table.nextPage()}
+            disabled={!table.getCanNextPage()}
+          >
+            Next
+          </Button>
+        </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete {companyToDelete?.name}. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -1399,8 +1791,8 @@ export default function CompaniesPage() {
 FILE: frontend/src/pages/CompanyDetailPage.jsx
 ================================================
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { getCompany, enrichCompany } from '../lib/api';
+import { useParams, useNavigate } from 'react-router-dom';
+import { getCompany, enrichCompany, deleteCompany } from '../lib/api';
 import { getCompanyNote, setCompanyNote, getLists, saveLists } from '../lib/storage';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -1412,12 +1804,24 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { ArrowLeft, Trash2 } from 'lucide-react';
 
 export default function CompanyDetailPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [company, setCompany] = useState(null);
   const [note, setNote] = useState('');
   const [enrichment, setEnrichment] = useState(null);
@@ -1426,6 +1830,7 @@ export default function CompanyDetailPage() {
   const [selectedLists, setSelectedLists] = useState({});
   const [newListName, setNewListName] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   useEffect(() => {
     getCompany(id).then(setCompany);
@@ -1480,24 +1885,50 @@ export default function CompanyDetailPage() {
     setNewListName('');
   };
 
-  if (!company) return <div>Loading...</div>;
+  const handleDelete = async () => {
+    try {
+      await deleteCompany(parseInt(id));
+      navigate('/companies');
+    } catch (error) {
+      console.error('Delete failed:', error);
+    }
+  };
+
+  if (!company) return <div className="flex justify-center items-center h-64">Loading...</div>;
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold">{company.name}</h1>
+      <div className="flex items-center justify-between">
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
+        >
+          <ArrowLeft size={20} className="mr-1" /> Back
+        </button>
+        <Button
+          variant="ghost"
+          onClick={() => setDeleteDialogOpen(true)}
+          className="text-red-500 hover:text-red-700 hover:bg-red-50"
+        >
+          <Trash2 size={18} className="mr-2" /> Delete Company
+        </Button>
+      </div>
+
+      <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">{company.name}</h1>
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-2 space-y-4">
           <Card>
             <CardHeader>
               <CardTitle>Company Overview</CardTitle>
             </CardHeader>
-            <CardContent>
-              <p><strong>Website:</strong> <a href={company.website} target="_blank" rel="noreferrer">{company.website}</a></p>
-              <p><strong>Industry:</strong> {company.industry}</p>
-              <p><strong>Location:</strong> {company.location}</p>
-              <p><strong>Founded:</strong> {company.founded}</p>
-              <p><strong>Total Funding:</strong> {company.total_funding}</p>
-              <p><strong>Description:</strong> {company.description}</p>
+            <CardContent className="space-y-2">
+              <p><span className="font-medium">Website:</span> <a href={company.website} target="_blank" rel="noreferrer" className="text-primary-600 hover:underline">{company.website}</a></p>
+              <p><span className="font-medium">Industry:</span> {company.industry}</p>
+              <p><span className="font-medium">Location:</span> {company.location}</p>
+              <p><span className="font-medium">Founded:</span> {company.founded || 'N/A'}</p>
+              <p><span className="font-medium">Total Funding:</span> {company.total_funding || 'N/A'}</p>
+              <p><span className="font-medium">Description:</span> {company.description}</p>
             </CardContent>
           </Card>
 
@@ -1507,7 +1938,6 @@ export default function CompanyDetailPage() {
             </CardHeader>
             <CardContent>
               <p>{company.last_signal || 'No recent signals'}</p>
-              {/* Placeholder for more signals */}
             </CardContent>
           </Card>
 
@@ -1531,20 +1961,20 @@ export default function CompanyDetailPage() {
                 <CardTitle>Enriched Data</CardTitle>
               </CardHeader>
               <CardContent>
-                <p><strong>Summary:</strong> {enrichment.summary}</p>
+                <p><span className="font-medium">Summary:</span> {enrichment.summary}</p>
                 <div className="mt-2">
-                  <strong>What they do:</strong>
-                  <ul className="list-disc pl-5">
+                  <span className="font-medium">What they do:</span>
+                  <ul className="list-disc pl-5 mt-1">
                     {enrichment.what_they_do.map((item, i) => (
                       <li key={i}>{item}</li>
                     ))}
                   </ul>
                 </div>
                 <div className="mt-2">
-                  <strong>Keywords:</strong> {enrichment.keywords.join(', ')}
+                  <span className="font-medium">Keywords:</span> {enrichment.keywords.join(', ')}
                 </div>
                 <div className="mt-2">
-                  <strong>Derived Signals:</strong> {enrichment.derived_signals.join(', ')}
+                  <span className="font-medium">Derived Signals:</span> {enrichment.derived_signals.join(', ')}
                 </div>
                 <p className="text-sm text-gray-500 mt-2">Source: {enrichment.sources[0]}</p>
               </CardContent>
@@ -1553,7 +1983,7 @@ export default function CompanyDetailPage() {
         </div>
 
         <div className="space-y-4">
-          <Button onClick={handleEnrich} disabled={enrichLoading} className="w-full">
+          <Button onClick={handleEnrich} disabled={enrichLoading} className="w-full bg-primary-600 hover:bg-primary-700">
             {enrichLoading ? 'Enriching...' : 'Enrich Company'}
           </Button>
 
@@ -1584,7 +2014,7 @@ export default function CompanyDetailPage() {
                     value={newListName}
                     onChange={(e) => setNewListName(e.target.value)}
                   />
-                  <Button onClick={handleCreateList}>Create</Button>
+                  <Button onClick={handleCreateList} variant="outline">Create</Button>
                 </div>
                 <Button onClick={handleSaveToList} className="w-full">Save</Button>
               </div>
@@ -1592,6 +2022,24 @@ export default function CompanyDetailPage() {
           </Dialog>
         </div>
       </div>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete {company.name}. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -1601,27 +2049,45 @@ export default function CompanyDetailPage() {
 FILE: frontend/src/pages/ListsPage.jsx
 ================================================
 import { useState, useEffect } from 'react';
-import { getLists, saveLists } from '../lib/storage';
+import { getLists, deleteList } from '../lib/storage';
 import { getCompany } from '../lib/api';
-// Using simple HTML + Tailwind instead of unavailable UI components
 import { Link } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Trash2 } from 'lucide-react';
 
 export default function ListsPage() {
   const [lists, setLists] = useState([]);
   const [newListName, setNewListName] = useState('');
   const [companyMap, setCompanyMap] = useState({});
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [listToDelete, setListToDelete] = useState(null);
 
-  useEffect(() => {
+  const fetchLists = () => {
     const stored = getLists();
     setLists(stored);
 
-    // Fetch company details for all companies in lists
     const companyIds = [...new Set(stored.flatMap((l) => l.companyIds))];
-    Promise.all(companyIds.map((id) => getCompany(id))).then((companies) => {
+    Promise.all(companyIds.map((id) => getCompany(id).catch(() => null))).then((companies) => {
       const map = {};
-      companies.forEach((c) => (map[c.id] = c));
+      companies.forEach((c) => {
+        if (c) map[c.id] = c;
+      });
       setCompanyMap(map);
     });
+  };
+
+  useEffect(() => {
+    fetchLists();
   }, []);
 
   const createList = () => {
@@ -1636,6 +2102,20 @@ export default function ListsPage() {
     setLists(updated);
     saveLists(updated);
     setNewListName('');
+  };
+
+  const handleDeleteClick = (list) => {
+    setListToDelete(list);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (listToDelete) {
+      const updated = deleteList(listToDelete.id);
+      setLists(updated);
+      setDeleteDialogOpen(false);
+      setListToDelete(null);
+    }
   };
 
   const exportList = (list) => {
@@ -1656,47 +2136,76 @@ export default function ListsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-4">Lists</h1>
+      <h1 className="text-2xl font-bold mb-6 text-gray-900 dark:text-gray-100">Lists</h1>
       <div className="flex gap-2 mb-6">
         <input
-          className="border rounded px-2 py-1 flex-1"
+          className="border rounded-lg px-3 py-2 flex-1 dark:bg-gray-800 dark:border-gray-700"
           placeholder="New list name"
           value={newListName}
           onChange={(e) => setNewListName(e.target.value)}
         />
-        <button
-          className="bg-blue-600 text-white rounded px-3 py-1"
-          onClick={createList}
-        >
+        <Button onClick={createList} className="bg-primary-600 hover:bg-primary-700">
           Create List
-        </button>
+        </Button>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {lists.map((list) => (
-          <div key={list.id} className="border rounded p-4">
-            <div className="font-semibold text-lg mb-2">{list.name}</div>
-            <p className="text-sm text-gray-500 mb-2">{list.companyIds.length} companies</p>
-            <div className="space-y-1 max-h-40 overflow-auto mb-2">
+          <div key={list.id} className="border rounded-lg p-4 bg-white dark:bg-gray-800 shadow-sm">
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className="font-semibold text-lg">{list.name}</h3>
+                <p className="text-sm text-gray-500">{list.companyIds.length} companies</p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleDeleteClick(list)}
+                className="text-red-500 hover:text-red-700 hover:bg-red-50"
+              >
+                <Trash2 size={16} />
+              </Button>
+            </div>
+            <div className="mt-3 space-y-1 max-h-40 overflow-auto">
               {list.companyIds.map((id) => {
                 const company = companyMap[id];
                 return company ? (
                   <div key={id}>
-                    <Link to={`/companies/${id}`} className="text-blue-600 hover:underline">
+                    <Link to={`/companies/${id}`} className="text-primary-600 hover:underline text-sm">
                       {company.name}
                     </Link>
                   </div>
                 ) : null;
               })}
             </div>
-            <button
-              className="mt-2 border rounded px-2 py-1 text-sm"
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => exportList(list)}
+              className="mt-3"
             >
               Export CSV
-            </button>
+            </Button>
           </div>
         ))}
       </div>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete List?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete "{listToDelete?.name}". This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -1707,13 +2216,25 @@ FILE: frontend/src/pages/SavedSearchesPage.jsx
 ================================================
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getSavedSearches, saveSavedSearches } from '../lib/storage';
-// Use simple HTML + Tailwind instead of unavailable UI components
-import { Search } from 'lucide-react';
+import { getSavedSearches, deleteSavedSearch } from '../lib/storage';
+import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Search, Trash2 } from 'lucide-react';
 
 export default function SavedSearchesPage() {
   const [searches, setSearches] = useState([]);
   const [newName, setNewName] = useState('');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [searchToDelete, setSearchToDelete] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -1721,13 +2242,11 @@ export default function SavedSearchesPage() {
   }, []);
 
   const createSearch = () => {
-    // In a real app, you'd capture current search params from context or URL
-    // For simplicity, we'll prompt for query/filters later; here just a placeholder
     if (!newName.trim()) return;
     const newSearch = {
       id: Date.now().toString(),
       name: newName,
-      query: '', // would be actual query
+      query: '',
       filters: {},
     };
     const updated = [...searches, newSearch];
@@ -1737,39 +2256,82 @@ export default function SavedSearchesPage() {
   };
 
   const runSearch = (search) => {
-    // For now, navigate to companies with a dummy query
     navigate(`/companies?search=${encodeURIComponent(search.name)}`);
+  };
+
+  const handleDeleteClick = (search) => {
+    setSearchToDelete(search);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (searchToDelete) {
+      const updated = deleteSavedSearch(searchToDelete.id);
+      setSearches(updated);
+      setDeleteDialogOpen(false);
+      setSearchToDelete(null);
+    }
   };
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-4">Saved Searches</h1>
+      <h1 className="text-2xl font-bold mb-6 text-gray-900 dark:text-gray-100">Saved Searches</h1>
       <div className="flex gap-2 mb-6">
         <input
-          className="border rounded px-2 py-1 flex-1"
+          className="border rounded-lg px-3 py-2 flex-1 dark:bg-gray-800 dark:border-gray-700"
           placeholder="New search name"
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
         />
-        <button className="bg-blue-600 text-white rounded px-3 py-1" onClick={createSearch}>
+        <Button onClick={createSearch} className="bg-primary-600 hover:bg-primary-700">
           Save Current Search
-        </button>
+        </Button>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {searches.map((search) => (
-          <div key={search.id} className="border rounded p-4">
-            <div className="font-semibold text-lg mb-2">{search.name}</div>
-            <div>
-              <button
-                className="border rounded px-2 py-1 text-sm flex items-center"
+          <div key={search.id} className="border rounded-lg p-4 bg-white dark:bg-gray-800 shadow-sm">
+            <div className="flex justify-between items-start">
+              <h3 className="font-semibold text-lg">{search.name}</h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleDeleteClick(search)}
+                className="text-red-500 hover:text-red-700 hover:bg-red-50"
+              >
+                <Trash2 size={16} />
+              </Button>
+            </div>
+            <div className="mt-3">
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => runSearch(search)}
+                className="flex items-center"
               >
                 <Search size={16} className="mr-2" /> Run Search
-              </button>
+              </Button>
             </div>
           </div>
         ))}
       </div>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Saved Search?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete "{searchToDelete?.name}". This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
