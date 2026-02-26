@@ -108,14 +108,12 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # CORS settings (allow frontend dev server)
 CORS_ALLOWED_ORIGINS = [
-    'http://localhost:5173',  # Vite default
-    'http://127.0.0.1:5173',
-    'http://localhost:5174',
-    'http://127.0.0.1:5174',
+    'https://venturecapitalintelligence.vercel.app',
+    'https://vcintelligence1.vercel.app'
 ]
 # For production, add your frontend domain
-if not DEBUG:
-    CORS_ALLOWED_ORIGINS += os.getenv('CORS_ALLOWED_ORIGINS', '').split(',')
+# if not DEBUG:
+#     CORS_ALLOWED_ORIGINS += os.getenv('CORS_ALLOWED_ORIGINS', '').split(',')
 
 # Django REST Framework settings
 REST_FRAMEWORK = {
