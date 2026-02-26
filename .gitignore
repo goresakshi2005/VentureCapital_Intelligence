@@ -21,3 +21,6 @@ Thumbs.db
 *.log
 *.tmp
 *.bak
+
+db.sqlite3 
+staticfiles/
