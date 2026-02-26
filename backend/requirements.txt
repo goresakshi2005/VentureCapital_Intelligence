@@ -1,9 +1,9 @@
-# backend/requirements.txt
 Django==4.2
+djangorestframework==3.14.0
 django-cors-headers==4.2
+django-filter==23.5
 python-dotenv==1.0
 google-generativeai==0.3.0
 tavily-python==0.1.0
-gunicorn==21.2.0            # for serving the app
-whitenoise==6.6.0           # static files
-django-filter==23.5         # if not already present
+gunicorn==21.2.0
+whitenoise==6.6.0
