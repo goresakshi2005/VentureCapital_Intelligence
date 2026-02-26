@@ -38,8 +38,14 @@ Directory structure:
             ├── index.css
             ├── main.jsx
             ├── components/
+            │   ├── CapabilitiesGrid.jsx
+            │   ├── CapabilityCard.jsx
+            │   ├── FloatingWhatsApp.jsx
             │   ├── Header.jsx
+            │   ├── Hero.jsx
             │   ├── Layout.jsx
+            │   ├── Navbar.jsx
+            │   ├── TopBar.jsx
             │   └── ui/
             │       ├── alert-dialog.jsx
             │       ├── button.jsx
@@ -57,6 +63,7 @@ Directory structure:
             └── pages/
                 ├── CompaniesPage.jsx
                 ├── CompanyDetailPage.jsx
+                ├── HomePage.jsx
                 ├── ListsPage.jsx
                 └── SavedSearchesPage.jsx
 
@@ -273,7 +280,7 @@ class AddCompany(APIView):
             content = response['results'][0].get('raw_content', '')
 
             genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
-            model = genai.GenerativeModel('gemini-1.5-flash')
+            model = genai.GenerativeModel('gemini-2.5-flash')
             prompt = f"""
             Based on the following website content, extract company information with these fields:
             - name (company name)
@@ -650,7 +657,7 @@ FILE: frontend/index.html
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
+    <title>VC Intelligence</title>
   </head>
   <body>
     <div id="root"></div>
@@ -670,7 +677,6 @@ FILE: frontend/index.html
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
-
 
 
 ================================================
@@ -733,7 +739,7 @@ FILE: frontend/tailwind.config.js
 ================================================
 /** @type {import('tailwindcss').Config} */
 export default {
-  darkMode: 'class', // Enable dark mode if desired
+  darkMode: 'class',
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
@@ -741,29 +747,41 @@ export default {
   theme: {
     extend: {
       colors: {
+        background: '#0B0A1A',
+        surface: '#14132E',
+        'surface-light': '#1E1A3A',
         primary: {
-          50: '#eff6ff',
-          100: '#dbeafe',
-          200: '#bfdbfe',
-          300: '#93c5fd',
-          400: '#60a5fa',
-          500: '#3b82f6',
-          600: '#2563eb',
-          700: '#1d4ed8',
-          800: '#1e40af',
-          900: '#1e3a8a',
+          DEFAULT: '#A855F7',   // lighter purple
+          light: '#C084FC',      // even lighter
+          dark: '#7E22CE',       // darker for hover
+          neon: '#D8B4FE',       // very light for accents
         },
-        secondary: {
-          50: '#f8fafc',
-          100: '#f1f5f9',
-          200: '#e2e8f0',
-          300: '#cbd5e1',
-          400: '#94a3b8',
-          500: '#64748b',
-          600: '#475569',
-          700: '#334155',
-          800: '#1e293b',
-          900: '#0f172a',
+        text: {
+          primary: '#FFFFFF',
+          secondary: '#E0E0E0',
+          muted: '#A0A0A0',
+          inactive: '#808080',
+        },
+        border: {
+          DEFAULT: '#2A2855',
+          light: '#3A3870',
+        },
+        accent: {
+          teal: '#35E0C5',
+          green: '#7CFF4F',
+          red: '#FF4D4D',
+        },
+        gray: {
+          50: '#f9fafb',
+          100: '#f3f4f6',
+          200: '#e5e7eb',
+          300: '#d1d5db',
+          400: '#9ca3af',
+          500: '#6b7280',
+          600: '#4b5563',
+          700: '#374151',
+          800: '#1f2937',
+          900: '#111827',
         },
       },
       fontFamily: {
@@ -881,12 +899,12 @@ FILE: frontend/src/index.css
 @tailwind utilities;
 
 html {
-	transition: background-color 200ms ease, color 200ms ease;
+  transition: background-color 200ms ease, color 200ms ease;
 }
 
 body {
-	-webkit-font-smoothing:antialiased;
-	-moz-osx-font-smoothing:grayscale;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 
@@ -904,6 +922,116 @@ createRoot(document.getElementById('root')).render(
   </StrictMode>,
 )
 
+
+
+================================================
+FILE: frontend/src/components/CapabilitiesGrid.jsx
+================================================
+import {
+  Cpu,
+  Brain,
+  BarChart3,
+  Globe,
+  Users,
+  HeartHandshake,
+} from 'lucide-react';
+import CapabilityCard from './CapabilityCard';
+
+const capabilities = [
+  {
+    icon: Cpu,
+    title: 'Enterprise Software Engineering',
+    description:
+      'Scalable, secure, and resilient systems built with modern architectures and best-in-class engineering practices.',
+  },
+  {
+    icon: Brain,
+    title: 'AI & Automation Systems',
+    description:
+      'Building predictive models, intelligent workflows, and data-driven automation engines for operational efficiency.',
+  },
+  {
+    icon: BarChart3,
+    title: 'Advanced Data Intelligence',
+    description:
+      'Transforming raw enterprise data into actionable insights through dashboards, analytics frameworks, and reporting systems.',
+  },
+  {
+    icon: Globe,
+    title: 'Digital Growth Infrastructure',
+    description:
+      'Structured SEO, content architecture, and performance analytics systems that support scalable digital expansion.',
+  },
+  {
+    icon: Users,
+    title: 'Technical Talent Development',
+    description:
+      'Building industry-ready professionals through practical engineering training and applied technology programs.',
+  },
+  {
+    icon: HeartHandshake,
+    title: 'Digital Inclusion & Rural Innovation',
+    description:
+      'Enabling technology adoption across emerging ecosystems through scalable digital platforms and innovation initiatives.',
+  },
+];
+
+export default function CapabilitiesGrid() {
+  return (
+    <section className="max-w-7xl mx-auto px-4 pb-20">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {capabilities.map((cap, idx) => (
+          <CapabilityCard key={idx} {...cap} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+
+================================================
+FILE: frontend/src/components/CapabilityCard.jsx
+================================================
+import { motion } from 'framer-motion';
+
+export default function CapabilityCard({ icon: Icon, title, description }) {
+  return (
+    <motion.div
+      whileHover={{ scale: 1.02, y: -5 }}
+      transition={{ type: 'spring', stiffness: 300 }}
+      className="glass-card rounded-2xl p-6 group cursor-pointer"
+    >
+      <div className="flex items-center gap-3 mb-4">
+        <div className="p-3 rounded-xl bg-neon-purple/10 text-neon-purple group-hover:text-neon-blue transition-colors">
+          <Icon size={24} />
+        </div>
+        <h3 className="text-xl font-semibold text-white">{title}</h3>
+      </div>
+      <p className="text-gray-400 text-sm leading-relaxed">{description}</p>
+      <div className="mt-4 neon-line opacity-50 group-hover:opacity-100 transition-opacity" />
+    </motion.div>
+  );
+}
+
+
+================================================
+FILE: frontend/src/components/FloatingWhatsApp.jsx
+================================================
+import { MessageCircle } from 'lucide-react';
+
+export default function FloatingWhatsApp() {
+  return (
+    <a
+      href="https://wa.me/1234567890"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="floating-btn"
+      aria-label="Chat on WhatsApp"
+    >
+      <MessageCircle size={28} className="text-white" />
+    </a>
+  );
+}
 
 
 ================================================
@@ -941,16 +1069,16 @@ export default function Header({ searchQuery, setSearchQuery, onSearch, mobileOp
   };
 
   return (
-    <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between gap-4">
+    <header className="bg-white dark:bg-surface border-b border-gray-200 dark:border-border p-4 flex items-center justify-between gap-4">
       <div className="flex items-center gap-4">
-        <button className="md:hidden p-2 -ml-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700" onClick={() => setMobileOpen && setMobileOpen(true)} aria-label="Open menu">
+        <button className="md:hidden p-2 -ml-2 rounded hover:bg-gray-100 dark:hover:bg-surface-light" onClick={() => setMobileOpen && setMobileOpen(true)} aria-label="Open menu">
           <Menu size={20} />
         </button>
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center text-white font-bold">VI</div>
+          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center text-white font-bold">VI</div>
           <div>
-            <div className="text-lg font-semibold text-gray-800 dark:text-gray-100">VC Intel</div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">Deal intelligence & lists</div>
+            <div className="text-lg font-semibold text-gray-800 dark:text-text-primary">Venture Capital Intelligence</div>
+            <div className="text-xs text-gray-500 dark:text-text-muted">Deal intelligence & lists</div>
           </div>
         </div>
       </div>
@@ -974,14 +1102,33 @@ export default function Header({ searchQuery, setSearchQuery, onSearch, mobileOp
         <Button variant="ghost" onClick={toggleTheme} aria-label="Toggle theme">
           {isDark ? <Sun size={18} /> : <Moon size={18} />}
         </Button>
-        <div className="w-8 h-8 bg-primary-100 dark:bg-primary-900 rounded-full flex items-center justify-center">
-          <span className="text-sm font-medium text-primary-600 dark:text-primary-300">U</span>
+        <div className="w-8 h-8 bg-primary-100 dark:bg-primary-dark rounded-full flex items-center justify-center">
+          <span className="text-sm font-medium text-primary-600 dark:text-primary">U</span>
         </div>
       </div>
     </header>
   );
 }
 
+
+================================================
+FILE: frontend/src/components/Hero.jsx
+================================================
+export default function Hero() {
+  return (
+    <section className="text-center py-20 px-4">
+      <span className="badge">CORE CAPABILITIES</span>
+      <h1 className="text-4xl md:text-6xl font-bold mt-6 bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
+        Enterprise Technology Capabilities
+      </h1>
+      <div className="flex items-center justify-center gap-3 mt-6">
+        <div className="w-16 h-px bg-neon-purple/50" />
+        <div className="w-2 h-2 rounded-full bg-neon-blue" />
+        <div className="w-16 h-px bg-neon-purple/50" />
+      </div>
+    </section>
+  );
+}
 
 
 ================================================
@@ -1006,52 +1153,52 @@ export default function Layout() {
   };
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Sidebar (hidden on small screens) */}
-      <div className="hidden md:flex w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex-col">
+    <div className="flex h-screen bg-gray-50 dark:bg-background">
+      {/* Sidebar */}
+      <div className="hidden md:flex w-64 bg-white dark:bg-surface border-r border-gray-200 dark:border-border flex-col">
         <div className="p-6">
-          <h1 className="text-2xl font-bold text-primary-600 dark:text-primary-400">VC Intel</h1>
+          <h1 className="text-2xl font-bold text-primary-600 dark:text-primary">VC Intelligence</h1>
         </div>
         <nav className="flex-1 px-4 space-y-1">
-          <Link to="/companies" className="flex items-center gap-3 px-3 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+          <Link to="/companies" className="flex items-center gap-3 px-3 py-2 text-gray-700 dark:text-text-secondary hover:bg-gray-100 dark:hover:bg-surface-light rounded-lg transition-colors">
             <Building2 size={20} /> Companies
           </Link>
-          <Link to="/lists" className="flex items-center gap-3 px-3 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+          <Link to="/lists" className="flex items-center gap-3 px-3 py-2 text-gray-700 dark:text-text-secondary hover:bg-gray-100 dark:hover:bg-surface-light rounded-lg transition-colors">
             <List size={20} /> Lists
           </Link>
-          <Link to="/saved" className="flex items-center gap-3 px-3 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+          <Link to="/saved" className="flex items-center gap-3 px-3 py-2 text-gray-700 dark:text-text-secondary hover:bg-gray-100 dark:hover:bg-surface-light rounded-lg transition-colors">
             <Save size={20} /> Saved Searches
           </Link>
         </nav>
-        <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+        <div className="p-4 border-t border-gray-200 dark:border-border">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-primary-100 dark:bg-primary-900 rounded-full flex items-center justify-center">
-              <User size={18} className="text-primary-600 dark:text-primary-300" />
+            <div className="w-8 h-8 bg-primary-100 dark:bg-primary-dark rounded-full flex items-center justify-center">
+              <User size={18} className="text-primary-600 dark:text-primary" />
             </div>
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-200">VC User</span>
+            <span className="text-sm font-medium text-gray-700 dark:text-text-secondary">VC User</span>
           </div>
         </div>
       </div>
 
-      {/* Mobile sidebar overlay */}
+      {/* Mobile sidebar */}
       {mobileOpen && (
         <div className="fixed inset-0 z-40 md:hidden">
           <div className="absolute inset-0 bg-black/40" onClick={() => setMobileOpen(false)} />
-          <aside className="absolute left-0 top-0 bottom-0 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 p-4">
+          <aside className="absolute left-0 top-0 bottom-0 w-64 bg-white dark:bg-surface border-r border-gray-200 dark:border-border p-4">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-primary-600 dark:text-primary-300">VC Intel</h2>
-              <button onClick={() => setMobileOpen(false)} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700">
+              <h2 className="text-lg font-semibold text-primary-600 dark:text-primary">VC Intel</h2>
+              <button onClick={() => setMobileOpen(false)} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-surface-light">
                 <X size={20} />
               </button>
             </div>
             <nav className="space-y-1">
-              <Link to="/companies" className="flex items-center gap-3 px-3 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+              <Link to="/companies" className="flex items-center gap-3 px-3 py-2 text-gray-700 dark:text-text-secondary hover:bg-gray-100 dark:hover:bg-surface-light rounded-lg transition-colors">
                 <Building2 size={20} /> Companies
               </Link>
-              <Link to="/lists" className="flex items-center gap-3 px-3 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+              <Link to="/lists" className="flex items-center gap-3 px-3 py-2 text-gray-700 dark:text-text-secondary hover:bg-gray-100 dark:hover:bg-surface-light rounded-lg transition-colors">
                 <List size={20} /> Lists
               </Link>
-              <Link to="/saved" className="flex items-center gap-3 px-3 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+              <Link to="/saved" className="flex items-center gap-3 px-3 py-2 text-gray-700 dark:text-text-secondary hover:bg-gray-100 dark:hover:bg-surface-light rounded-lg transition-colors">
                 <Save size={20} /> Saved Searches
               </Link>
             </nav>
@@ -1061,13 +1208,146 @@ export default function Layout() {
 
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Top header */}
         <Header searchQuery={searchQuery} setSearchQuery={setSearchQuery} onSearch={handleSearch} />
-
-        {/* Page content */}
-        <main className="flex-1 overflow-auto p-6 bg-gray-50 dark:bg-gray-900">
+        <main className="flex-1 overflow-auto p-6 bg-gray-50 dark:bg-background">
           <Outlet />
         </main>
+      </div>
+    </div>
+  );
+}
+
+
+================================================
+FILE: frontend/src/components/Navbar.jsx
+================================================
+import { Link, NavLink } from 'react-router-dom';
+import { Sun, Moon, Menu, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Button } from './ui/button';
+
+export default function Navbar() {
+  const [isDark, setIsDark] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    const stored = localStorage.getItem('theme');
+    if (stored === 'dark') setIsDark(true);
+    else if (stored === 'light') setIsDark(false);
+    else setIsDark(window.matchMedia('(prefers-color-scheme: dark)').matches);
+  }, []);
+
+  const toggleTheme = () => {
+    const next = !isDark;
+    setIsDark(next);
+    if (next) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  };
+
+  const navLinks = [
+    { to: '/', label: 'Home' },
+    { to: '/companies', label: 'Companies' },
+    { to: '/lists', label: 'Lists' },
+    { to: '/saved', label: 'Saved Searches' },
+  ];
+
+  return (
+    <nav className="sticky top-[46px] z-30 bg-navy-800/50 backdrop-blur-md border-b border-white/10 py-3 px-6">
+      <div className="flex items-center justify-between">
+        <Link to="/" className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-neon-purple to-neon-blue flex items-center justify-center text-white font-bold">
+            VI
+          </div>
+          <span className="text-xl font-semibold text-white">VC Intel</span>
+        </Link>
+
+        {/* Desktop Navigation */}
+        <div className="hidden md:flex items-center gap-8">
+          {navLinks.map((link) => (
+            <NavLink
+              key={link.to}
+              to={link.to}
+              className={({ isActive }) =>
+                `text-sm font-medium transition hover:text-neon-purple ${
+                  isActive ? 'text-neon-purple' : 'text-gray-300'
+                }`
+              }
+            >
+              {link.label}
+            </NavLink>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" onClick={toggleTheme} className="text-gray-300 hover:text-white">
+            {isDark ? <Sun size={18} /> : <Moon size={18} />}
+          </Button>
+          <div className="hidden md:block w-8 h-8 bg-neon-purple/20 rounded-full flex items-center justify-center">
+            <span className="text-sm font-medium text-neon-purple">U</span>
+          </div>
+          <button
+            className="md:hidden p-2 rounded hover:bg-white/10"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          >
+            {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile Menu */}
+      {mobileMenuOpen && (
+        <div className="md:hidden mt-4 space-y-2 pb-3">
+          {navLinks.map((link) => (
+            <NavLink
+              key={link.to}
+              to={link.to}
+              onClick={() => setMobileMenuOpen(false)}
+              className={({ isActive }) =>
+                `block py-2 text-sm transition hover:text-neon-purple ${
+                  isActive ? 'text-neon-purple' : 'text-gray-300'
+                }`
+              }
+            >
+              {link.label}
+            </NavLink>
+          ))}
+        </div>
+      )}
+    </nav>
+  );
+}
+
+
+================================================
+FILE: frontend/src/components/TopBar.jsx
+================================================
+import { Phone, Mail, Clock } from 'lucide-react';
+
+export default function TopBar() {
+  return (
+    <div className="sticky top-0 z-40 bg-navy-800/80 backdrop-blur-md border-b border-white/10 text-sm py-2 px-6 flex flex-wrap items-center justify-between text-gray-300">
+      <div className="flex items-center gap-6">
+        <span className="flex items-center gap-2">
+          <Phone size={14} className="text-neon-purple" />
+          <a href="tel:+1234567890" className="hover:text-neon-blue transition">+1 (234) 567-890</a>
+        </span>
+        <span className="flex items-center gap-2">
+          <Mail size={14} className="text-neon-purple" />
+          <a href="mailto:info@vcintel.com" className="hover:text-neon-blue transition">info@vcintel.com</a>
+        </span>
+        <span className="hidden md:flex items-center gap-2">
+          <Clock size={14} className="text-neon-purple" />
+          <span>Monâ€“Fri 9amâ€“6pm</span>
+        </span>
+      </div>
+      <div className="flex gap-4">
+        <a href="#" className="hover:text-neon-purple transition">LinkedIn</a>
+        <a href="#" className="hover:text-neon-purple transition">Twitter</a>
       </div>
     </div>
   );
@@ -1193,11 +1473,11 @@ FILE: frontend/src/components/ui/button.jsx
 import React from 'react';
 
 export function buttonVariants({ variant, size, className = '' } = {}) {
-  const base = 'inline-flex items-center justify-center rounded';
+  const base = 'inline-flex items-center justify-center rounded transition-colors';
   const sizeClass = size === 'sm' ? 'px-2 py-1 text-sm' : 'px-3 py-1.5';
-  let variantClass = 'bg-primary-600 text-white';
-  if (variant === 'outline') variantClass = 'border border-gray-200 dark:border-gray-700 bg-transparent';
-  if (variant === 'ghost') variantClass = 'bg-transparent hover:bg-gray-100 dark:hover:bg-gray-700';
+  let variantClass = 'bg-primary-600 text-white hover:bg-primary-700 dark:bg-primary dark:hover:bg-primary-dark';
+  if (variant === 'outline') variantClass = 'border border-gray-200 dark:border-border bg-transparent text-gray-700 dark:text-text-secondary hover:bg-gray-100 dark:hover:bg-surface-light';
+  if (variant === 'ghost') variantClass = 'bg-transparent text-gray-700 dark:text-text-secondary hover:bg-gray-100 dark:hover:bg-surface-light hover:text-gray-900 dark:hover:text-text-primary';
   return `${base} ${sizeClass} ${variantClass} ${className}`.trim();
 }
 
@@ -1213,18 +1493,17 @@ export function Button({ children, className = '', variant, size, disabled, ...p
 export default Button;
 
 
-
 ================================================
 FILE: frontend/src/components/ui/card.jsx
 ================================================
 import React from 'react';
 
 export function Card({ children, className = '' }) {
-  return <div className={`rounded-lg border bg-white dark:bg-gray-800 dark:border-gray-700 shadow-sm ${className}`}>{children}</div>;
+  return <div className={`rounded-lg border border-gray-200 dark:border-border bg-white dark:bg-surface shadow-sm ${className}`}>{children}</div>;
 }
 
 export function CardHeader({ children, className = '' }) {
-  return <div className={`px-4 py-3 border-b border-gray-100 dark:border-gray-700 ${className}`}>{children}</div>;
+  return <div className={`px-4 py-3 border-b border-gray-100 dark:border-border-light ${className}`}>{children}</div>;
 }
 
 export function CardTitle({ children, className = '' }) {
@@ -1236,7 +1515,6 @@ export function CardContent({ children, className = '' }) {
 }
 
 export default Card;
-
 
 
 ================================================
@@ -1346,7 +1624,7 @@ FILE: frontend/src/components/ui/table.jsx
 import React from 'react';
 
 export function Table({ children, className = '' }) {
-  return <table className={`min-w-full divide-y divide-gray-200 dark:divide-gray-700 ${className}`}>{children}</table>;
+  return <table className={`min-w-full divide-y divide-gray-200 dark:divide-border ${className}`}>{children}</table>;
 }
 
 export function TableHeader({ children, className = '' }) {
@@ -1358,19 +1636,18 @@ export function TableBody({ children, className = '' }) {
 }
 
 export function TableRow({ children, className = '' }) {
-  return <tr className={`hover:bg-gray-50 dark:hover:bg-gray-800 ${className}`}>{children}</tr>;
+  return <tr className={`hover:bg-gray-50 dark:hover:bg-surface-light ${className}`}>{children}</tr>;
 }
 
 export function TableHead({ children, className = '' }) {
-  return <th className={`text-left px-4 py-3 text-xs font-medium text-gray-700 dark:text-gray-200 uppercase tracking-wide ${className}`}>{children}</th>;
+  return <th className={`text-left px-4 py-3 text-xs font-medium text-gray-700 dark:text-text-secondary uppercase tracking-wide ${className}`}>{children}</th>;
 }
 
 export function TableCell({ children, className = '' }) {
-  return <td className={`px-4 py-3 text-sm text-gray-600 dark:text-gray-300 ${className}`}>{children}</td>;
+  return <td className={`px-4 py-3 text-sm text-gray-600 dark:text-text-secondary ${className}`}>{children}</td>;
 }
 
 export default Table;
-
 
 
 ================================================
@@ -1531,13 +1808,11 @@ export default function CompaniesPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  // Add company dialog state
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [newCompanyUrl, setNewCompanyUrl] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [addError, setAddError] = useState('');
 
-  // Delete confirmation state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [companyToDelete, setCompanyToDelete] = useState(null);
 
@@ -1604,7 +1879,7 @@ export default function CompaniesPage() {
         header: 'Name',
         cell: ({ row }) => (
           <button
-            className="text-primary-600 hover:underline font-medium"
+            className="text-primary-600 dark:text-primary hover:underline font-medium"
             onClick={() => navigate(`/companies/${row.original.id}`)}
           >
             {row.original.name}
@@ -1623,7 +1898,7 @@ export default function CompaniesPage() {
             variant="ghost"
             size="sm"
             onClick={() => handleDeleteClick(row.original)}
-            className="text-red-500 hover:text-red-700 hover:bg-red-50"
+            className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:text-accent-red dark:hover:bg-red-950/30"
           >
             <Trash2 size={16} />
           </Button>
@@ -1636,23 +1911,19 @@ export default function CompaniesPage() {
   const table = useReactTable({
     data,
     columns,
-    state: {
-      globalFilter,
-    },
+    state: { globalFilter },
     onGlobalFilterChange: () => {},
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    initialState: {
-      pagination: { pageSize: 10 },
-    },
+    initialState: { pagination: { pageSize: 10 } },
   });
 
-  if (loading) return <div className="flex justify-center items-center h-64">Loading...</div>;
+  if (loading) return <div className="flex justify-center items-center h-64 text-text-secondary">Loading...</div>;
   if (error)
     return (
-      <div className="flex justify-center items-center h-64 text-red-600">
+      <div className="flex justify-center items-center h-64 text-red-600 dark:text-accent-red">
         Error: {error}
       </div>
     );
@@ -1660,10 +1931,10 @@ export default function CompaniesPage() {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Companies</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-text-primary">Companies</h1>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="bg-primary-600 hover:bg-primary-700">
+            <Button className="bg-primary-600 hover:bg-primary-700 dark:bg-primary dark:hover:bg-primary-dark">
               <Plus size={16} className="mr-2" /> Add Company
             </Button>
           </DialogTrigger>
@@ -1673,7 +1944,7 @@ export default function CompaniesPage() {
             </DialogHeader>
             <form onSubmit={handleAddCompany} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Company Website URL</label>
+                <label className="block text-sm font-medium mb-1 dark:text-text-secondary">Company Website URL</label>
                 <Input
                   type="url"
                   placeholder="https://example.com"
@@ -1682,7 +1953,7 @@ export default function CompaniesPage() {
                   required
                 />
               </div>
-              {addError && <p className="text-red-500 text-sm">{addError}</p>}
+              {addError && <p className="text-red-500 dark:text-accent-red text-sm">{addError}</p>}
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
                   Cancel
@@ -1696,7 +1967,7 @@ export default function CompaniesPage() {
         </Dialog>
       </div>
 
-      <div className="rounded-lg border bg-white dark:bg-gray-800 shadow-sm">
+      <div className="rounded-lg border border-gray-200 dark:border-border bg-white dark:bg-surface shadow-sm">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -1712,10 +1983,7 @@ export default function CompaniesPage() {
                           onClick: header.column.getToggleSortingHandler(),
                         }}
                       >
-                        {flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
+                        {flexRender(header.column.columnDef.header, header.getContext())}
                         {{
                           asc: ' ðŸ”¼',
                           desc: ' ðŸ”½',
@@ -1742,7 +2010,7 @@ export default function CompaniesPage() {
       </div>
 
       <div className="flex items-center justify-between space-x-2 py-4">
-        <div className="text-sm text-gray-500">
+        <div className="text-sm text-gray-500 dark:text-text-muted">
           Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
         </div>
         <div className="flex gap-2">
@@ -1765,7 +2033,6 @@ export default function CompaniesPage() {
         </div>
       </div>
 
-      {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -1776,7 +2043,7 @@ export default function CompaniesPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700">
+            <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700 dark:bg-accent-red dark:hover:bg-red-700">
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -1894,56 +2161,81 @@ export default function CompanyDetailPage() {
     }
   };
 
-  if (!company) return <div className="flex justify-center items-center h-64">Loading...</div>;
+  if (!company) return <div className="flex justify-center items-center h-64 text-text-secondary">Loading...</div>;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
+          className="flex items-center text-gray-600 hover:text-gray-900 dark:text-text-secondary dark:hover:text-text-primary"
         >
           <ArrowLeft size={20} className="mr-1" /> Back
         </button>
         <Button
           variant="ghost"
           onClick={() => setDeleteDialogOpen(true)}
-          className="text-red-500 hover:text-red-700 hover:bg-red-50"
+          className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:text-accent-red dark:hover:bg-red-950/30"
         >
           <Trash2 size={18} className="mr-2" /> Delete Company
         </Button>
       </div>
 
-      <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">{company.name}</h1>
+      <h1 className="text-3xl font-bold text-gray-900 dark:text-text-primary">{company.name}</h1>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-2 space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Company Overview</CardTitle>
+              <CardTitle className="text-gray-900 dark:text-text-primary">Company Overview</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
-              <p><span className="font-medium">Website:</span> <a href={company.website} target="_blank" rel="noreferrer" className="text-primary-600 hover:underline">{company.website}</a></p>
-              <p><span className="font-medium">Industry:</span> {company.industry}</p>
-              <p><span className="font-medium">Location:</span> {company.location}</p>
-              <p><span className="font-medium">Founded:</span> {company.founded || 'N/A'}</p>
-              <p><span className="font-medium">Total Funding:</span> {company.total_funding || 'N/A'}</p>
-              <p><span className="font-medium">Description:</span> {company.description}</p>
+            <CardContent className="space-y-2 text-gray-700 dark:text-text-secondary">
+              <p>
+                <span className="font-medium text-gray-900 dark:text-text-primary">Website:</span>{' '}
+                <a
+                  href={company.website}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-primary-600 dark:text-primary hover:underline"
+                >
+                  {company.website}
+                </a>
+              </p>
+              <p>
+                <span className="font-medium text-gray-900 dark:text-text-primary">Industry:</span>{' '}
+                {company.industry}
+              </p>
+              <p>
+                <span className="font-medium text-gray-900 dark:text-text-primary">Location:</span>{' '}
+                {company.location}
+              </p>
+              <p>
+                <span className="font-medium text-gray-900 dark:text-text-primary">Founded:</span>{' '}
+                {company.founded || 'N/A'}
+              </p>
+              <p>
+                <span className="font-medium text-gray-900 dark:text-text-primary">Total Funding:</span>{' '}
+                {company.total_funding || 'N/A'}
+              </p>
+              <p>
+                <span className="font-medium text-gray-900 dark:text-text-primary">Description:</span>{' '}
+                {company.description}
+              </p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle>Signals Timeline</CardTitle>
+              <CardTitle className="text-gray-900 dark:text-text-primary">Signals Timeline</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="text-gray-700 dark:text-text-secondary">
               <p>{company.last_signal || 'No recent signals'}</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle>Notes</CardTitle>
+              <CardTitle className="text-gray-900 dark:text-text-primary">Notes</CardTitle>
             </CardHeader>
             <CardContent>
               <Textarea
@@ -1951,6 +2243,7 @@ export default function CompanyDetailPage() {
                 onChange={handleNoteChange}
                 placeholder="Add your notes here..."
                 rows={4}
+                className="bg-white dark:bg-surface-light border-gray-200 dark:border-border text-gray-900 dark:text-text-primary placeholder:text-gray-400 dark:placeholder:text-text-muted"
               />
             </CardContent>
           </Card>
@@ -1958,42 +2251,55 @@ export default function CompanyDetailPage() {
           {enrichment && (
             <Card>
               <CardHeader>
-                <CardTitle>Enriched Data</CardTitle>
+                <CardTitle className="text-gray-900 dark:text-text-primary">Enriched Data</CardTitle>
               </CardHeader>
-              <CardContent>
-                <p><span className="font-medium">Summary:</span> {enrichment.summary}</p>
-                <div className="mt-2">
-                  <span className="font-medium">What they do:</span>
+              <CardContent className="space-y-2 text-gray-700 dark:text-text-secondary">
+                <p>
+                  <span className="font-medium text-gray-900 dark:text-text-primary">Summary:</span>{' '}
+                  {enrichment.summary}
+                </p>
+                <div>
+                  <span className="font-medium text-gray-900 dark:text-text-primary">What they do:</span>
                   <ul className="list-disc pl-5 mt-1">
                     {enrichment.what_they_do.map((item, i) => (
                       <li key={i}>{item}</li>
                     ))}
                   </ul>
                 </div>
-                <div className="mt-2">
-                  <span className="font-medium">Keywords:</span> {enrichment.keywords.join(', ')}
-                </div>
-                <div className="mt-2">
-                  <span className="font-medium">Derived Signals:</span> {enrichment.derived_signals.join(', ')}
-                </div>
-                <p className="text-sm text-gray-500 mt-2">Source: {enrichment.sources[0]}</p>
+                <p>
+                  <span className="font-medium text-gray-900 dark:text-text-primary">Keywords:</span>{' '}
+                  {enrichment.keywords.join(', ')}
+                </p>
+                <p>
+                  <span className="font-medium text-gray-900 dark:text-text-primary">Derived Signals:</span>{' '}
+                  {enrichment.derived_signals.join(', ')}
+                </p>
+                <p className="text-sm text-gray-500 dark:text-text-muted mt-2">
+                  Source: {enrichment.sources[0]}
+                </p>
               </CardContent>
             </Card>
           )}
         </div>
 
         <div className="space-y-4">
-          <Button onClick={handleEnrich} disabled={enrichLoading} className="w-full bg-primary-600 hover:bg-primary-700">
+          <Button
+            onClick={handleEnrich}
+            disabled={enrichLoading}
+            className="w-full bg-primary-600 hover:bg-primary-700 dark:bg-primary dark:hover:bg-primary-dark"
+          >
             {enrichLoading ? 'Enriching...' : 'Enrich Company'}
           </Button>
 
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" className="w-full">Save to List</Button>
+              <Button variant="outline" className="w-full">
+                Save to List
+              </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Add to Lists</DialogTitle>
+                <DialogTitle className="text-gray-900 dark:text-text-primary">Add to Lists</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
                 {lists.map((list) => (
@@ -2005,7 +2311,9 @@ export default function CompanyDetailPage() {
                         setSelectedLists({ ...selectedLists, [list.id]: checked })
                       }
                     />
-                    <Label htmlFor={list.id}>{list.name}</Label>
+                    <Label htmlFor={list.id} className="text-gray-700 dark:text-text-secondary">
+                      {list.name}
+                    </Label>
                   </div>
                 ))}
                 <div className="flex gap-2">
@@ -2014,9 +2322,13 @@ export default function CompanyDetailPage() {
                     value={newListName}
                     onChange={(e) => setNewListName(e.target.value)}
                   />
-                  <Button onClick={handleCreateList} variant="outline">Create</Button>
+                  <Button onClick={handleCreateList} variant="outline">
+                    Create
+                  </Button>
                 </div>
-                <Button onClick={handleSaveToList} className="w-full">Save</Button>
+                <Button onClick={handleSaveToList} className="w-full">
+                  Save
+                </Button>
               </div>
             </DialogContent>
           </Dialog>
@@ -2027,14 +2339,17 @@ export default function CompanyDetailPage() {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle className="text-gray-900 dark:text-text-primary">Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-600 dark:text-text-secondary">
               This will permanently delete {company.name}. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-red-600 hover:bg-red-700 dark:bg-accent-red dark:hover:bg-red-700"
+            >
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -2046,13 +2361,30 @@ export default function CompanyDetailPage() {
 
 
 ================================================
+FILE: frontend/src/pages/HomePage.jsx
+================================================
+import Hero from '../components/Hero';
+import CapabilitiesGrid from '../components/CapabilitiesGrid';
+
+export default function HomePage() {
+  return (
+    <>
+      <Hero />
+      <CapabilitiesGrid />
+    </>
+  );
+}
+
+
+================================================
 FILE: frontend/src/pages/ListsPage.jsx
 ================================================
 import { useState, useEffect } from 'react';
-import { getLists, deleteList } from '../lib/storage';
+import { getLists, deleteList, saveLists } from '../lib/storage';
 import { getCompany } from '../lib/api';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -2136,31 +2468,35 @@ export default function ListsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6 text-gray-900 dark:text-gray-100">Lists</h1>
+      <h1 className="text-2xl font-bold mb-6 text-gray-900 dark:text-text-primary">Lists</h1>
       <div className="flex gap-2 mb-6">
-        <input
-          className="border rounded-lg px-3 py-2 flex-1 dark:bg-gray-800 dark:border-gray-700"
+        <Input
           placeholder="New list name"
           value={newListName}
           onChange={(e) => setNewListName(e.target.value)}
+          className="flex-1"
         />
-        <Button onClick={createList} className="bg-primary-600 hover:bg-primary-700">
+        <Button onClick={createList} className="bg-primary-600 hover:bg-primary-700 dark:bg-primary dark:hover:bg-primary-dark">
           Create List
         </Button>
       </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {lists.map((list) => (
-          <div key={list.id} className="border rounded-lg p-4 bg-white dark:bg-gray-800 shadow-sm">
+          <div
+            key={list.id}
+            className="border rounded-lg p-4 bg-white dark:bg-surface border-gray-200 dark:border-border shadow-sm"
+          >
             <div className="flex justify-between items-start">
               <div>
-                <h3 className="font-semibold text-lg">{list.name}</h3>
-                <p className="text-sm text-gray-500">{list.companyIds.length} companies</p>
+                <h3 className="font-semibold text-lg text-gray-900 dark:text-text-primary">{list.name}</h3>
+                <p className="text-sm text-gray-500 dark:text-text-muted">{list.companyIds.length} companies</p>
               </div>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => handleDeleteClick(list)}
-                className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:text-accent-red dark:hover:bg-red-950/30"
               >
                 <Trash2 size={16} />
               </Button>
@@ -2170,7 +2506,10 @@ export default function ListsPage() {
                 const company = companyMap[id];
                 return company ? (
                   <div key={id}>
-                    <Link to={`/companies/${id}`} className="text-primary-600 hover:underline text-sm">
+                    <Link
+                      to={`/companies/${id}`}
+                      className="text-primary-600 dark:text-primary hover:underline text-sm"
+                    >
                       {company.name}
                     </Link>
                   </div>
@@ -2200,7 +2539,7 @@ export default function ListsPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700">
+            <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700 dark:bg-accent-red dark:hover:bg-red-700">
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -2216,8 +2555,9 @@ FILE: frontend/src/pages/SavedSearchesPage.jsx
 ================================================
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getSavedSearches, deleteSavedSearch } from '../lib/storage';
+import { getSavedSearches, deleteSavedSearch, saveSavedSearches } from '../lib/storage';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -2275,28 +2615,32 @@ export default function SavedSearchesPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6 text-gray-900 dark:text-gray-100">Saved Searches</h1>
+      <h1 className="text-2xl font-bold mb-6 text-gray-900 dark:text-text-primary">Saved Searches</h1>
       <div className="flex gap-2 mb-6">
-        <input
-          className="border rounded-lg px-3 py-2 flex-1 dark:bg-gray-800 dark:border-gray-700"
+        <Input
           placeholder="New search name"
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
+          className="flex-1"
         />
-        <Button onClick={createSearch} className="bg-primary-600 hover:bg-primary-700">
+        <Button onClick={createSearch} className="bg-primary-600 hover:bg-primary-700 dark:bg-primary dark:hover:bg-primary-dark">
           Save Current Search
         </Button>
       </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {searches.map((search) => (
-          <div key={search.id} className="border rounded-lg p-4 bg-white dark:bg-gray-800 shadow-sm">
+          <div
+            key={search.id}
+            className="border rounded-lg p-4 bg-white dark:bg-surface border-gray-200 dark:border-border shadow-sm"
+          >
             <div className="flex justify-between items-start">
-              <h3 className="font-semibold text-lg">{search.name}</h3>
+              <h3 className="font-semibold text-lg text-gray-900 dark:text-text-primary">{search.name}</h3>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => handleDeleteClick(search)}
-                className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:text-accent-red dark:hover:bg-red-950/30"
               >
                 <Trash2 size={16} />
               </Button>
@@ -2326,7 +2670,7 @@ export default function SavedSearchesPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700">
+            <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700 dark:bg-accent-red dark:hover:bg-red-700">
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

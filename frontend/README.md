@@ -1,16 +1,58 @@
-# React + Vite
+# Venture Capital Intelligence
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+**Venture Capital Intelligence** is a full‑stack application for venture capital professionals to discover, track, and enrich startup data. It combines a Django REST API with a modern React frontend, and uses AI‑powered enrichment to automatically extract key company information from their websites.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Features
 
-## React Compiler
+- 📋 **Company Management** – View, search, sort, and filter companies.
+- 🌐 **Add Companies by URL** – Submit a company website; the backend scrapes it and uses Gemini AI to extract structured data (name, description, industry, location, funding, etc.) – all saved to the database.
+- 🔍 **Enrichment** – For any company, request additional insights (summary, bullet points, keywords, signals) via Tavily + Gemini (displayed temporarily, not saved).
+- 📁 **Custom Lists** – Create lists, add companies, and export any list as a CSV file.
+- 💾 **Saved Searches** – Save search queries and reuse them later.
+- 📝 **Private Notes** – Attach notes to companies (stored in `localStorage`).
+- 🌙 **Dark Mode** – Toggle between light and dark themes, with preference persisted.
+- 📱 **Responsive UI** – Built with Tailwind CSS and Radix UI primitives, works on desktop and mobile.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the ESLint configuration
+## Tech Stack
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### Backend
+- **Django 4.2** & **Django REST Framework** – API and database layer
+- **SQLite** – Default database (easily replaceable with PostgreSQL)
+- **Tavily Python** – Web scraping / extraction API
+- **Google Generative AI (Gemini)** – AI‑powered data extraction
+- **django-cors-headers** – CORS support for frontend
+- **python-dotenv** – Environment variable management
+
+### Frontend
+- **React 19** – UI library
+- **Vite** – Build tool and dev server
+- **Tailwind CSS** – Styling
+- **React Router DOM** – Routing
+- **TanStack React Table** – Powerful table with sorting, filtering, pagination
+- **Radix UI** – Accessible unstyled components (dialogs, alerts)
+- **Axios** – API requests
+- **Lucide React** – Icons
+- **localStorage** – Persist user lists, saved searches, and notes
+
+---
+
+## Prerequisites
+
+- **Python 3.9+** and **pip**
+- **Node.js 18+** and **npm** (or yarn)
+- API keys for:
+  - [Tavily](https://tavily.com)
+  - [Google Gemini](https://ai.google.dev/)
+
+---
+
+## Installation
+
+### 1. Clone the repository
+```bash
+git clone https://github.com/yourusername/venture-capital-intelligence.git
+cd venture-capital-intelligence
